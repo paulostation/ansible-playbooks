@@ -9,5 +9,5 @@
       msg: "The inventory_hostname is {{ inventory_hostname }}"
   
   roles:
-    - role: /home/chaveslab/labchaves/aprendizado_ansible/roles/git
+    - role: ./roles/git
       
