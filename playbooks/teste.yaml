@@ -9,5 +9,5 @@
       msg: "The inventory_hostname is {{ inventory_hostname }}"
   
   roles:
-    - role: ./roles/git
+    - role: ../roles/git
       
