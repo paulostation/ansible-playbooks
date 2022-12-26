@@ -1,13 +1,9 @@
 ---
 - name: playbook de teste
   hosts: all
-  become: yes
 
-  tasks:
-  - name:
-    debug:
-      msg: "The inventory_hostname is {{ inventory_hostname }}"
-  
   roles:
-    - role: ../roles/git
-      
+    - role: jellyfin
+      become: true
+      tags:
+        - jellyfin
