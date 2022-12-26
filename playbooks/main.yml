@@ -3,6 +3,10 @@
   hosts: all
 
   roles:
+    - role: users
+      become: true
+      tags:
+        - users
     - role: jellyfin
       become: true
       tags:
