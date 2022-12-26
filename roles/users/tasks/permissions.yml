@@ -1,0 +1,11 @@
+- name: Adding rules for admins and deployers
+  template:
+    src: admins.sudoers
+    dest: /etc/sudoers.d/admin
+    mode: 0440
+
+- name: Grant SSH access to all users
+  authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ lookup('file', 'files/' + item.name + '.pub') }}"
+  loop: "{{ users }}"
