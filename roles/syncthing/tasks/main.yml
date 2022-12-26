@@ -1,0 +1,14 @@
+---
+- name: Checking if syncthing is already installed
+  stat:
+    path: /usr/bin/syncthing
+  register: syncthing_bin
+
+- debug:
+    msg: Syncthing is currently installed
+  when: syncthing_bin.stat.exists
+
+- name: Installing Syncthing
+  ansible.builtin.include_tasks:
+    file: install.yml
+  when: not syncthing_bin.stat.exists or syncthing_is_an_upgrade
