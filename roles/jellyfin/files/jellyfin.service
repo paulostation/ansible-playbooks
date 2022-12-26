@@ -1,0 +1,12 @@
+[Unit]
+Description=Jellyfin
+After=network.target
+
+[Service]
+Type=simple
+User=jellyfin
+Restart=always
+ExecStart=/opt/jellyfin/jellyfin.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,111 @@
+---
+- name: Install apt dependencies
+  apt:
+    name: 
+      - libc6
+    state: present
+    update_cache: yes
+
+- name: Add user "jellyfin"
+  user:
+    name: jellyfin
+    shell: /sbin/nologin
+    create_home: no
+    comment: "Jellyfin Media Server nologin User"
+    state: present
+  become: true
+
+- name: Creates install dir
+  file:
+    path: /opt/jellyfin
+    owner: jellyfin
+    group: jellyfin
+    state: directory
+    mode: 0744
+  tags: 
+    - create-dir
+
+- name: Download jellyfin package
+  get_url:
+    url: https://repo.jellyfin.org/releases/server/linux/stable/combined/jellyfin_10.8.8_armhf.tar.gz
+    dest: /tmp/jellyfin_10.8.8_armhf.tar.gz
+
+- name: Extract jellyfin tarball into /opt
+  ansible.builtin.unarchive:
+    src: /tmp/jellyfin_10.8.8_armhf.tar.gz
+    dest: /opt/jellyfin
+    owner: jellyfin
+    group: jellyfin
+    remote_src: true
+
+- name: Creates install folder symlink
+  file:
+    state: link
+    src: /opt/jellyfin/jellyfin_10.8.8
+    owner: jellyfin
+    group: jellyfin
+    follow: false
+    dest: /opt/jellyfin/jellyfin
+  tags: 
+    - create-dir
+
+- name: Create subdirs for jellyfin data
+  file:
+    state: directory
+    path: "/opt/jellyfin/{{ item }}"
+    owner: jellyfin
+    group: jellyfin
+  with_items:
+    - data
+    - cache
+    - config
+    - log
+  tags:
+    - create-dir
+
+- name: Download jellyfin-ffmpeg package
+  get_url: 
+    url: https://repo.jellyfin.org/releases/server/debian/versions/jellyfin-ffmpeg/5.1.2-5/jellyfin-ffmpeg5_5.1.2-5-buster_armhf.deb
+    dest: /tmp
+
+- name: Install a .deb package
+  ansible.builtin.apt:
+    deb: /tmp/jellyfin-ffmpeg5_5.1.2-5-buster_armhf.deb
+
+- name: Copy jellyfin start script
+  copy:
+    src: jellyfin.sh
+    dest: /opt/jellyfin/jellyfin.sh
+    owner: jellyfin
+    group: jellyfin
+    mode: 0544
+
+- name: Copy jellyfin service description
+  copy:
+    src: jellyfin.service
+    dest: /etc/systemd/system/jellyfin.service
+    mode: 0644
+  tags:
+    - systemd
+
+- name: Reload service jellyfin, in all cases
+  ansible.builtin.systemd:
+    name: jellyfin.service
+    state: reloaded
+  tags:
+    - systemd
+
+- name: Enable service jellyfin and ensure it is not masked
+  ansible.builtin.systemd:
+    name: jellyfin.service
+    enabled: yes
+    masked: no
+  tags:
+    - systemd
+
+- name: Make sure the service unit is running
+  ansible.builtin.systemd:
+    state: started
+    name: jellyfin.service
+  tags:
+    - systemd
