@@ -7,7 +7,13 @@
       become: true
       tags:
         - users
+
     - role: jellyfin
       become: true
       tags:
         - jellyfin
+
+    - role: syncthing
+      become: true
+      tags:
+        - syncthing
