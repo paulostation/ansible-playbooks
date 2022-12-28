@@ -17,3 +17,8 @@
       become: true
       tags:
         - syncthing
+
+    - role: transmission
+      become: true
+      tags:
+        - transmission
