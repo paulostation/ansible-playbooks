@@ -1,0 +1,14 @@
+---
+- name: Checking if transmission is already installed
+  stat:
+    path: /usr/bin/transmission-daemon
+  register: transmission_bin
+
+- debug:
+    msg: Transmission is currently installed
+  when: transmission_bin.stat.exists
+
+- name: Installing Transmission
+  include_tasks:
+    file: install.yml
+  when: not transmission_bin.stat.exists or transmission_is_an_upgrade
