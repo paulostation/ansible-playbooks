@@ -17,3 +17,16 @@
       become: true
       tags:
         - syncthing
+<<<<<<< Updated upstream
+=======
+
+    - role: transmission
+      become: true
+      tags:
+        - transmission
+
+    - role: networking
+      become: true
+      tags:
+        - networking
+>>>>>>> Stashed changes
