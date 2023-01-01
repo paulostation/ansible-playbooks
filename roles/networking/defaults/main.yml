@@ -1,0 +1,2 @@
+desired_dns_servers: [192.168.15.6]
+default_network_gateway: 192.168.15.1
