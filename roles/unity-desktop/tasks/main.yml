@@ -1,0 +1,42 @@
+---
+- name: Stop and disable GNOME desktop manager service
+  systemd:
+    name: gdm
+    state: stopped
+    enabled: no
+
+- name: Remove all GNOME packages
+  apt:
+    name:
+      - nautilus
+      - nautilus-*
+      - gnome-power-manager
+      - gnome-screensaver
+      - gnome-termina*
+      - gnome-pane*
+      - gnome-applet*
+      - gnome-bluetooth
+      - gnome-desktop*
+      - gnome-sessio*
+      - gnome-user*
+      - gnome-shell-common
+      - zeitgeist-core
+      - libzeitgeist*
+      - gnome-control-center
+      - gnome-screenshot
+      - gnome*
+    state: absent
+    update_cache: yes
+    autoremove: yes
+
+- name: Reboot machine
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+
+- name: Install unity desktop package
+  apt:
+    name:
+      - ubuntu-unity-desktop
+      - dbus-x11
+    state: present
+    update_cache: yes

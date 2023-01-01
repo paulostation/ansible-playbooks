@@ -17,8 +17,6 @@
       become: true
       tags:
         - syncthing
-<<<<<<< Updated upstream
-=======
 
     - role: transmission
       become: true
@@ -29,4 +27,8 @@
       become: true
       tags:
         - networking
->>>>>>> Stashed changes
+
+    - role: unity-desktop
+      become: true
+      tags:
+        - desktop
