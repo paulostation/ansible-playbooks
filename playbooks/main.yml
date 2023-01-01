@@ -22,3 +22,8 @@
       become: true
       tags:
         - transmission
+
+    - role: networking
+      become: true
+      tags:
+        - networking
