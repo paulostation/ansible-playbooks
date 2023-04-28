@@ -1,0 +1,14 @@
+---
+- name: Checking if lokinet is already installed
+  stat:
+    path: /usr/bin/lokinet
+  register: lokinet_bin
+
+- debug:
+    msg: lokinet is currently installed
+  when: lokinet_bin.stat.exists
+
+- name: Installing lokinet
+  ansible.builtin.include_tasks:
+    file: install.yml
+  when: not lokinet_bin.stat.exists or lokinet_is_an_upgrade
