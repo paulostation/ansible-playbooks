@@ -1,0 +1,44 @@
+---
+- name: Download monero-gui tarball
+  get_url:
+    url: https://downloads.getmonero.org/gui/monero-gui-linux-x64-v0.18.3.1.tar.bz2
+    dest: /tmp/monero-gui.tar.bz2
+
+- name: Get sha256 sum of script
+  stat:
+    path: /tmp/monero-gui.tar.bz2
+    checksum_algorithm: sha256
+    get_checksum: yes
+  register: monero_tarball
+
+
+# - name: Verify sha256sum of script before execution.
+#   fail:
+#     msg: "Failure, file is not correct. Downloaded file sha256 sum is {{ monero_tarball.stat.checksum }}"
+#   when: monero_tarball.stat.checksum != '186800de18f67cca8475ce392168aabeb5709a8f8058b0f7919d7c693786d56b'
+
+
+
+- name: Creates install dir
+  file:
+    path: /home/{{ ansible_user }}/.monero-gui
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    state: directory
+    mode: 0700
+  tags:
+    - create-dir
+
+- name: Extract jellyfin tarball into /opt
+  unarchive:
+    src: /tmp/monero-gui.tar.bz2
+    dest: /home/{{ ansible_user }}/.monero-gui
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    remote_src: true
+
+- name: Create desktop entry
+  copy:
+    src: monero-gui.desktop
+    dest: /home/{{ ansible_user }}/.local/share/applications
+    mode: 0750
