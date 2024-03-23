@@ -8,28 +8,28 @@
       tags:
         - dev
 
-    - role: syncthing
-      become: true
-      tags:
-        - syncthing
+    # - role: syncthing
+    #   become: true
+    #   tags:
+    #     - syncthing
 
-    - role: vscode
-      become: true
-      tags:
-        - dev
-        - vscode
+    # - role: vscode
+    #   become: true
+    #   tags:
+    #     - dev
+    #     - vscode
 
-    - role: geerlingguy.docker
-      become: true
-      tags:
-        - docker
+    # - role: geerlingguy.docker
+    #   become: true
+    #   tags:
+    #     - docker
 
-    - role: slack
-      become: true
-      tags:
-        - dev
+    # - role: slack
+    #   become: true
+    #   tags:
+    #     - dev
 
-    - role: indicator-sysmonitor
-      become: true
-      tags:
-        - utils
+    # - role: indicator-sysmonitor
+    #   become: true
+    #   tags:
+    #     - utils

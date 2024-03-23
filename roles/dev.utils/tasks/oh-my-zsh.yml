@@ -1,0 +1,71 @@
+- name: Install ZSH
+  apt:
+    name: zsh
+    state: present
+
+- name: Download Oh My Zsh install script
+  get_url:
+    url: "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
+    dest: "/tmp/install_zsh.sh"
+
+- name: Run Oh My Zsh install script
+  become: false
+  command: "bash /tmp/install_zsh.sh"
+  ignore_errors: true
+
+- name: change user shell to zsh
+  become: yes
+  user:
+    name: "{{ ansible_user }}"
+    shell: /usr/bin/zsh
+
+- name: Set correct permissions for plugins
+  become: true
+  file:
+    path: /home/{{ ansible_user }}/.oh-my-zsh/custom/plugins
+    mode: 0755
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: yes
+
+- name: Install zsh autosuggestions plugin
+  become: false
+  git:
+    repo: 'https://github.com/zsh-users/zsh-autosuggestions'
+    dest: /home/{{ ansible_user }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+    force: yes
+
+- name: Set correct permissions for plugins
+  become: true
+  file:
+    path: /home/{{ ansible_user }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+    mode: 0740
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: yes
+
+- name: Install znap and enable autocomplete plugin
+  become: true
+  ansible.builtin.blockinfile:
+    insertbefore: exit 0
+    path: /home/{{ ansible_user }}/.zshrc
+    block: |
+      # Download Znap, if it's not there yet.
+      [[ -r ~/Repos/znap/znap.zsh ]] ||
+          git clone --depth 1 -- \
+              https://github.com/marlonrichert/zsh-snap.git ~/Repos/znap
+      source ~/Repos/znap/znap.zsh  # Start Znap
+
+      znap source marlonrichert/zsh-autocomplete
+
+- name: Set correct permissions for plugins
+  become: true
+  file:
+    path: /home/{{ ansible_user }}/{{ item }}
+    mode: 0740
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: yes
+  with_items:
+    - Repos/marlonrichert/zsh-autocomplete
+    - Repos/znap
