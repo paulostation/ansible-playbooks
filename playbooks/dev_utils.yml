@@ -1,0 +1,29 @@
+---
+- name: playbook de teste
+  hosts: all
+
+  roles:
+    - role: dev.utils
+      become: true
+      tags:
+        - dev
+
+    - role: syncthing
+      become: true
+      tags:
+        - syncthing
+
+    - role: vscode
+      become: true
+      tags:
+        - vscode
+        
+    - role: geerlingguy.docker
+      become: true
+      tags:
+        - docker
+
+    #- role: easyeffects
+    #  become: false
+    #  tags:
+    #    - easyeffects
