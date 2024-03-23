@@ -1,0 +1,28 @@
+- name: Checking if ninja is already installed
+  stat:
+    path: /usr/bin/ninja
+  register: ninja_bin
+
+- debug:
+    msg: "ninja bin {{ ninja_bin.stat.exists }}"
+
+- name: Install ninja
+  when: ninja_bin.stat.exists | bool == false
+  block:
+    - name: Cloning ninja git repo
+      git:
+        repo: 'https://github.com/ninja-build/ninja.git'
+        dest: /tmp/ninja
+
+    - name: configure
+      command: ./configure.py --bootstrap
+      args:
+        chdir: /tmp/ninja/
+
+    - name: Install ninja to /usr/bin
+      copy:
+        src: /tmp/ninja/ninja
+        dest: /usr/bin
+        mode: 655
+        remote_src: true
+      become: true
