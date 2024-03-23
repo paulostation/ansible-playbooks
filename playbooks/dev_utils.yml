@@ -16,14 +16,20 @@
     - role: vscode
       become: true
       tags:
+        - dev
         - vscode
-        
+
     - role: geerlingguy.docker
       become: true
       tags:
         - docker
 
-    #- role: easyeffects
-    #  become: false
-    #  tags:
-    #    - easyeffects
+    - role: slack
+      become: true
+      tags:
+        - dev
+
+    - role: indicator-sysmonitor
+      become: true
+      tags:
+        - utils
