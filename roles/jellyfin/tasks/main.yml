@@ -1,0 +1,14 @@
+---
+- name: Checking if jellyfin is already installed
+  stat:
+    path: /opt/jellyfin/jellyfin/jellyfin
+  register: jellyfin_bin
+
+- debug:
+    msg: Jellyfin is currently installed
+  when: jellyfin_bin.stat.exists
+
+- name: Installing Jellyfin
+  ansible.builtin.include_tasks:
+    file: install.yml
+  when: not jellyfin_bin.stat.exists or jellyfin_is_an_upgrade

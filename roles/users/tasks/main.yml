@@ -1,0 +1,17 @@
+---
+- name: Creating groups
+  group:
+    name: "{{ item }}"
+    state: present
+  loop: '{{ groups_ | list }}'
+
+- name: Creating users
+  user:
+    name: "{{ item.name }}"
+    groups: "{{ groups_[item.group] }}"
+    shell: "/bin/bash"
+  loop: "{{ users }}"
+
+- name: Set permissions for users
+  ansible.builtin.include_tasks:
+    file: permissions.yml
