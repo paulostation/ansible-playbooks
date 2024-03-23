@@ -1,1 +1,6 @@
 syncthing_is_an_upgrade: no
+devices_to_add:
+  - device_id: KLXUWIC-5GIZH7B-L4ZE347-V5BBEY5-CNSVPMD-5PIGYP5-6EYWXIR-S7IUIAF
+    name: PCdoB
+  - device_id: 3PWQJ27-46AYHQG-KCQ5ICB-CMR4FAB-RHZAB5D-PM26JA2-SYWHETK-X6UQCQK
+    name: raspberry-pi-bravo
