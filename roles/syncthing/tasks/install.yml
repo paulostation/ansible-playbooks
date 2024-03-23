@@ -1,0 +1,67 @@
+---
+- name: Add syncthing signing key to a specific keyring file
+  apt_key:
+    url: https://syncthing.net/release-key.gpg
+    keyring: /usr/share/keyrings/syncthing-archive-keyring.gpg
+
+- name: Add syncthing repository into sources list
+  apt_repository:
+    repo: deb [signed-by=/usr/share/keyrings/syncthing-archive-keyring.gpg] https://apt.syncthing.net/ syncthing stable
+    state: present
+    filename: syncthing
+  tags:
+    - apt
+
+- name: Install apt dependencies
+  apt:
+    name:
+      - syncthing
+    state: present
+    update_cache: yes
+  tags:
+    - apt
+
+- name: Add user "syncthing"
+  user:
+    name: syncthing
+    shell: /sbin/nologin
+    create_home: yes
+    comment: "Syncthing nologin User"
+    state: present
+
+- name: Copy syncthing service description
+  copy:
+    src: syncthing.service
+    dest: /etc/systemd/system/syncthing.service
+    mode: 0644
+  tags:
+    - systemd
+
+- name: Copy rsyslog configuration for syncthing service
+  copy:
+    src: rsyslog.conf
+    dest: /etc/rsyslog.d/syncthing.conf
+    mode: 0644
+
+- name: Stop syncthing if it is already running
+  systemd:
+    name: syncthing.service
+    state: stopped
+  tags:
+    - systemd
+
+- name: Enable service syncthing and ensure it is not masked
+  systemd:
+    name: syncthing.service
+    enabled: yes
+    masked: no
+  tags:
+    - systemd
+
+- name: Make sure the service unit is running
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: syncthing.service
+  tags:
+    - systemd

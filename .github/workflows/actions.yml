@@ -1,0 +1,11 @@
+name: Lint YAML
+run-name: Linting YAML files
+on:
+  - pull_request
+jobs:
+  yaml_lint:
+    name: "YAML Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Yamllint Github Action
+        uses: karancode/yamllint-github-action@v2.0.0

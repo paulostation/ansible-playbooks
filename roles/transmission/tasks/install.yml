@@ -1,0 +1,51 @@
+---
+- name: Install transmission package
+  apt:
+    name: transmission-daemon
+    state: present
+    update_cache: yes
+
+- name: Stop transmission-daemon if it is already running
+  systemd:
+    name: transmission-daemon.service
+    state: stopped
+  tags:
+    - systemd
+
+- name: Copy transmission-daemon service description
+  copy:
+    src: transmission-daemon.service
+    dest: /etc/systemd/system/transmission-daemon.service
+    mode: 0644
+  tags:
+    - systemd
+
+- name: Copy settings file
+  copy:
+    src: settings.json
+    dest: /etc/transmission-daemon/settings.json
+    mode: 0644
+  tags:
+    - systemd
+
+- name: Copy rsyslog configuration for transmission-daemon service
+  copy:
+    src: rsyslog.conf
+    dest: /etc/rsyslog.d/transmission-daemon.conf
+    mode: 0644
+
+- name: Enable service transmission-daemon and ensure it is not masked
+  systemd:
+    name: transmission-daemon.service
+    enabled: yes
+    masked: no
+  tags:
+    - systemd
+
+- name: Make sure the service unit is running
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: transmission-daemon.service
+  tags:
+    - systemd
