@@ -1,0 +1,28 @@
+---
+- name: Install meson
+  become: yes
+  apt:
+    name: meson
+    state: present
+    update_cache: yes
+
+- name: Installing Ninja
+  include_tasks:
+    file: install_ninja.yml
+
+- name: Install spice
+  include_tasks:
+    file: install_spice.yml
+
+- name: Installing qemu
+  include_tasks:
+    file: install_qemu.yml
+
+- name: Install virt-manager
+  include_tasks:
+    file: virt-manager.yml
+
+- name: Installing Libvirt
+  include_tasks:
+    file: libvirtd.yml
+
