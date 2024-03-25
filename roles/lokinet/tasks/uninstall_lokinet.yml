@@ -1,0 +1,56 @@
+---
+# - name: Add lokinet APT key
+#   apt_key:
+#     url: https://deb.imaginary.stream/public.gpg
+#     state: absent
+#   tags:
+#     - apt
+- name: Remove existing lokinet stuff
+  file:
+    path: /var/lib/lokinet
+    state: absent
+
+- name: Remove existing lokinet stuff
+  file:
+    path: /usr/bin/lokinet
+    state: absent
+
+- name: Enable pipewire systemd units
+  systemd:
+    name: '{{ item }}'
+    enabled: no
+    masked: no
+  with_items:
+    - lokinet
+    - lokinet-vpn-manager
+  tags:
+    - systemd
+
+
+# - name: Remove lokinet service
+#   file:
+#     path: /usr/lib/systemd/system/lokinet.service
+#     state: absent
+
+- name: Clear iptables rules
+  file:
+    path: /etc/iptables/rules.v4
+    state: absent
+
+
+- name: Hostname distribution
+  debug: msg="{{ansible_distribution_release}}"
+
+# - name: The next command tells apt where to find the packages
+#   ansible.builtin.blockinfile:
+#     path: /etc/apt/sources.list.d/imaginary.stream.list
+#     create: true
+#     block: |
+#       deb https://deb.imaginary.stream {{ ansible_distribution_release }} main
+
+- name: Install apt dependencies
+  apt:
+    name:
+      - lokinet
+      - lokinet-bin
+    state: absent

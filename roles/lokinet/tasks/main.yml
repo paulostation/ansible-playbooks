@@ -1,0 +1,25 @@
+---
+- name: Uninstall lokinet
+  include_tasks:
+    file: uninstall_lokinet.yml
+  when: uninstall_lokinet | bool == true
+
+- name: Install lokinet
+  when: uninstall_lokinet | bool == false
+  block:
+
+    - name: Installing lokinet as gateway
+      include_tasks:
+        file: install_gateway.yml
+
+    - name: Add lokinet monitor
+      include_tasks:
+        file: configure_iptables.yml
+
+    - name: Add lokinet monitor
+      include_tasks:
+        file: install_lokinet_vpn_manager.yml
+
+    # - name: Reboot the machine to apply configs if needed
+    #   reboot:
+    #   when: should_reboot | bool == true

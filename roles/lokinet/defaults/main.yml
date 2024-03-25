@@ -1,0 +1,8 @@
+lokinet_standalone_install: false
+install_lokinet_vpn_manager: true
+lokinet_exit_node_url: euroexit.loki
+primary_network_interface: eth0
+secondary_network_interface: wlan0
+should_reboot: false
+reinstall_lokinet: false
+uninstall_lokinet: false

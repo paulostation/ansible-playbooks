@@ -1,0 +1,25 @@
+- name: Deploys VM based on cloud image
+  hosts: localhost
+  gather_facts: true
+  become: false
+  vars:
+    vcpus: 2
+    ram_mb: 4096
+    cleanup: yes
+    # vm_name: "{{ vm_name }}"
+    net: default
+    ssh_pub_key: "/home/paulosf/.ssh/id_rsa.pub"
+
+  tasks:
+
+    - name: Provision client VM
+      include_role:
+        name: kvm_provision
+      vars:
+        reset_pool: false
+        vm_vcpus: "{{ vcpus }}"
+        vm_ram_mb: 4096
+        cleanup_tmp: "{{ cleanup }}"
+        ssh_key: "{{ ssh_pub_key }}"
+        install_desktop: true
+        private_network_only: true

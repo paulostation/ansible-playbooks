@@ -1,0 +1,109 @@
+*nat
+
+# Allow Access Point NAT to loki tunnel
+-A POSTROUTING -o lokitun0 -j MASQUERADE
+
+-A POSTROUTING -o {{ primary_network_interface }} -p tcp --dport 22000 -s 10.17.0.0/24 -m state --state NEW,ESTABLISHED -j MASQUERADE -m comment --comment "Allow syncthing packets"
+
+# Log not forwarded
+# -A POSTROUTING -m limit --limit 60/min -j LOG --log-prefix "NAT rule not fwded: " --log-level 7
+
+COMMIT
+
+*filter
+
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT -m comment --comment "Accepts established inbound connections"
+# Allows SSH connections
+# The --dport number is the same as in /etc/ssh/sshd_config
+-A INPUT -p tcp -m state --state NEW --dport 22 -j ACCEPT
+-A INPUT -p tcp -m state --state NEW --sport 22 -j ACCEPT
+-A OUTPUT -p tcp -m state --state NEW --dport 22 -j ACCEPT
+-A OUTPUT -p tcp -m state --state NEW --sport 22 -j ACCEPT
+-A INPUT -i lo -j ACCEPT -m comment --comment "Allow all loopback traffic"
+-A INPUT ! -i lo -d 127.0.0.0/8 -j REJECT -m comment --comment "Drop all traffic to 127 that doesn't use lo"
+
+-A INPUT -j LOG --log-prefix "iptables testing rule in: " --log-level 7
+# -A INPUT ! -p tcp --dport 22 -m limit --limit 5/sec -j LOG --log-prefix "iptables testing rule in: " --log-level 7
+-A FORWARD -m limit --limit 5/sec -j LOG --log-prefix "iptables testing rule fwd: " --log-level 7
+# -A OUTPUT -m limit --limit 5/sec -j LOG --log-prefix "iptables testing rule output: " --log-level 7
+
+
+# -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT -m comment --comment "Allow all incoming on established connections"
+
+# Accepts all established inbound connections
+# -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -p udp -m udp --sport 53 --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
+
+-A INPUT -i lokitun0 -p icmp --icmp-type 3/3 -j ACCEPT
+-A INPUT -i lokitun0 -p icmp --icmp-type 4/4 -j ACCEPT
+
+# Allows all inbound traffic from wlan0
+# -A INPUT -i wlan0 -j ACCEPT
+# -A FORWARD -i lokitun0 -j ACCEPT
+# Allows all outbound traffic
+# You could modify this to only allow certain traffic
+-A OUTPUT -o lokitun0 -j ACCEPT
+
+# DNS stuff
+-A INPUT -i {{ secondary_network_interface }} -p udp --dport 53 -j ACCEPT -m comment --comment "Accept incoming UDP DNS"
+-A INPUT -i {{ secondary_network_interface }} -p tcp --dport 53 -j ACCEPT -m comment --comment "Accept incoming TCP DNS"
+
+# DHCP stuff
+-A INPUT -i {{ secondary_network_interface }} -p udp --dport 67 -j ACCEPT -m comment --comment "Accept incoming UDP DHCP Request"
+
+# Allows HTTP and HTTPS connections from anywhere (the normal ports
+# for websites)
+# -A INPUT -p tcp --dport 80 -j ACCEPT
+# -A INPUT -p tcp -j ACCEPT
+# -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# -A INPUT -p
+
+
+# Limit SSH abuse
+# The first rule records the IP address of each new attempt to access
+# port 22 using the recent module. The second rule checks to see if that
+# IP address has attempted to connect 4 or more times within the last
+# 60 seconds, and if not then the packet is accepted.
+-A INPUT -p tcp -m state --state NEW -m recent --dport 22 --set --name ssh --rsource
+-A INPUT -p tcp -m state --state NEW -m recent --dport 22 ! --rcheck --seconds 60 --hitcount 4 --name ssh --rsource -j ACCEPT
+
+# block traffic from the AP to the main router
+# -A FORWARD -i {{ secondary_network_interface }} -o {{ primary_network_interface }} -j DROP
+
+# Allow Syncthing connections.
+-A FORWARD -p tcp --dport 22000 -s 10.17.0.0/24 -m state --state NEW,ESTABLISHED -j ACCEPT
+
+# Allow checking lokinet health for first setup
+# -A INPUT -p tcp --dport 5000 -m state --state NEW,ESTABLISHED -j ACCEPT
+
+# Allow Zeroconf connections. (Bonjour and Avahi)
+# -A INPUT -p udp -m state --state NEW --dport 5353 -j ACCEPT
+
+# Allow ping
+# note that blocking other types of icmp packets is considered a bad idea
+# by some
+#  remove -m icmp --icmp-type 8 from this line to allow all kinds of icmp:
+#  https://security.stackexchange.com/questions/22711
+-A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+
+# Allow forwarded from eth0 to permit NAT and Access Point
+# -A FORWARD -i eth0 -o lokitun0 -j ACCEPT
+-A FORWARD  -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+
+# Then you allow related/established traffic, and drop everything else, without acknowledgement to peers.
+-A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+-A OUTPUT -j ACCEPT -m comment --comment "Accept all outgoing"
+
+# log iptables denied calls (access via 'dmesg' command)
+-A FORWARD -m limit --limit 60/min -j LOG --log-prefix "iptables forward denied: " --log-level 7
+-A INPUT -j LOG --log-prefix "iptables input denied: " --log-level 7
+-A OUTPUT -j LOG --log-prefix "iptables output denied: " --log-level 7
+
+# Reject all other inbound - default deny unless explicitly allowed policy:
+-A INPUT -j DROP
+-A FORWARD -j DROP
+-A OUTPUT -j DROP
+
+COMMIT

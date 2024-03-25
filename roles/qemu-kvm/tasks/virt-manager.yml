@@ -106,3 +106,5 @@
         block: |
           # fix for virt-manager built locally
           export PYTHONPATH=/usr/local/share/virt-manager:$PYTHONPATH
+          # always use system-wide daemon
+          export VIRSH_DEFAULT_CONNECT_URI=qemu:///system

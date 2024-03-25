@@ -2,7 +2,9 @@
 - name: Install meson
   become: yes
   apt:
-    name: meson
+    name: 
+      - meson
+      - cloud-utils
     state: present
     update_cache: yes
 
@@ -26,3 +28,22 @@
   include_tasks:
     file: libvirtd.yml
 
+- name: Create groups
+  group:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - libvirt-qemu
+    - libvirt
+    - libvirtd
+  become: true
+
+- name: Add user for qemu and libvirt
+  user:
+    name: libvirt-qemu
+    shell: /sbin/nologin
+    create_home: no
+    comment: "libvirtd system user"
+    state: present
+    group: libvirt-qemu
+  become: true

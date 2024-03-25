@@ -1,0 +1,26 @@
+- name: Create iptables rules dir
+  file:
+    path: /etc/iptables
+    state: directory
+    mode: 0655
+  become: true
+
+- name: Copy iptables ruleset
+  when: lokinet_standalone_install | bool == true
+  copy:
+    src: standalone/iptables.rules
+    dest: /etc/iptables/rules.v4
+    mode: 0644
+  tags:
+    - iptables
+
+- name: Copy iptables ruleset
+  when: lokinet_standalone_install | bool == false
+  template:
+    src: iptables.rules.j2  # This is the path to your Jinja2 template
+    dest: /etc/iptables/rules.v4  # Specify the destination path for the generated XML
+    mode: 0644
+
+- name: Apply iptables rules
+  become: true
+  shell: iptables-restore < /etc/iptables/rules.v4
