@@ -8,14 +8,19 @@
   debug:
     msg: Installed version {{ libvirtd_installed_version.stdout }}
 
+- name: Check virsh
+  command: virsh --version
+  register: virsh_output
+  ignore_errors: true
+
 # TODO: check if it is really needed to put root user and group on /etc/libvirt/qemu.conf
 - name: Install libvirtd
-  when: libvirtd_installed_version.stdout != libvirtd_version or update_libvirtd | bool == true
+  when: virsh_output.rc != 0 or libvirtd_installed_version.stdout != libvirtd_version or update_libvirtd | bool == true
   block:
     - name: Cleanup leftovers from other libvirt installs
       apt:
         name:
-          - libvirt-bin
+          # - libvirt-bin
           - libvirt-clients
           - libvirt-daemon
           - libvirt-daemon-config-network
@@ -85,9 +90,23 @@
         version: "v9.10.0"
 
     - name: configure using meson
-      command: meson setup build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
+      environment:
+          PKG_CONFIG: /usr/bin/pkg-config
+          PATH: /usr/bin:/usr/local/bin
+      command: meson setup --reconfigure build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
       args:
         chdir: /tmp/libvirt/
+      register: configure_output
+      ignore_errors: true
+
+    - name: Debug
+      vars:
+        msg: |
+            Configure output:
+            {{ configure_output.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
 
     - name: build using ninja
       command: ninja -C build
@@ -99,6 +118,15 @@
       args:
         chdir: /tmp/libvirt/
       become: true
+      register: install_output
+
+    - name: Debug
+      vars:
+        msg: |
+            Install output:
+            {{ install_output.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
 
     - name: Configure libvirtd access
       ansible.builtin.blockinfile:
@@ -160,3 +188,18 @@
         msg: "{{ msg.split('\n') }}"
       tags:
         - systemd
+
+    - name: Changing /etc/environment to include libvirt.so.0 in LD_LIBRARY_PATH
+      become: true
+      blockinfile:
+        path: "/etc/environment"
+        create: false
+        block: |
+          export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
+
+    # - name: Copy libvirt.so.0 to /usr/local/lib
+    #   become: true
+    #   copy:
+    #     src: /usr/lib/x86_64-linux-gnu/libvirt.so.0
+    #     dest: /usr/local/lib/x86_64-linux-gnu/
+    

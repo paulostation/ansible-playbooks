@@ -23,13 +23,13 @@
   tags:
     - systemd
 
-- name: Make sure the service unit is running
-  systemd:
-    state: restarted
-    daemon_reload: yes
-    name: lokinet-vpn-manager.service
-  tags:
-    - systemd
+# - name: Make sure the service unit is running
+#   systemd:
+#     state: restarted
+#     daemon_reload: yes
+#     name: lokinet-vpn-manager.service
+#   tags:
+#     - systemd
 
 - name: Copy lokinet-vpn monitor bash script
   copy:

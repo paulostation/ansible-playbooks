@@ -3,14 +3,10 @@
   stat:
     path: /usr/bin/{{ item }}
   loop:
-    - qemu-img
-    - qemu-system-x86_64
-    - qemu-edid
-    - qemu-io
-    - qemu-keymap
-    - qemu-nbd
-    - qemu-pr-helper
-    - qemu-bridge-helper
+    - virt-xml
+    - virt-install
+    - virt-clone
+    - virt-manager
   register: file_stats
 
 - name: Skip if all files are present
@@ -105,6 +101,6 @@
         path: /home/{{ ansible_user }}/.zshrc
         block: |
           # fix for virt-manager built locally
-          export PYTHONPATH=/usr/local/share/virt-manager:$PYTHONPATH
+          export PYTHONPATH=/usr/share/virt-manager:$PYTHONPATH
           # always use system-wide daemon
           export VIRSH_DEFAULT_CONNECT_URI=qemu:///system

@@ -113,6 +113,15 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
+- name: Enable service lokinet monitor and ensure it is not masked
+  systemd:
+    name: lokinet_vpn.service
+    enabled: no
+    masked: no
+    state: stopped
+  tags:
+    - systemd
+
 - name: Schedule reboot
   set_fact:
     # vm: "ansible-vm-{{ lookup('community.general.random_string', length=4, upper=false, special=false) }}"

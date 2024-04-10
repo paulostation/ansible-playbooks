@@ -35,7 +35,7 @@
 
 # TODO: check if it is really needed to put root user and group on /etc/libvirt/qemu.conf
 - name: Install qemu kvm
-  when: not file_stats.results | map(attribute='stat.exists') | list is all or update_virt_manager | bool == true
+  when: not file_stats.results | map(attribute='stat.exists') | list is all or update_qemu_kvm | bool == true
   block:
 
     - name: Create groups
@@ -60,20 +60,20 @@
 
     # - fail:
 
-    - name: Cleanup leftovers from other installs
-      apt:
-        name:
-          - qemu-kvm
-          - libvirt-bin
-          - ubuntu-vm-builder
-          - jack
-          - jack2
-          - pulseaudio
-          - pulseaudio-bluetooth
-          - bridge-utils
-        state: absent
-        purge: yes
-      become: true
+    # - name: Cleanup leftovers from other installs
+    #   apt:
+    #     name:
+    #       - qemu-kvm
+    #       - libvirt-bin
+    #       - ubuntu-vm-builder
+    #       - jack
+    #       - jack2
+    #       - pulseaudio
+    #       - pulseaudio-bluetooth
+    #       - bridge-utils
+    #     state: absent
+    #     purge: yes
+    #   become: true
 
     # - name: Cleanup leftovers from other installs
     #   file:
@@ -245,6 +245,8 @@
           - libxen-dev
           - liblzo2-dev
           - libslirp-dev
+          - libusb-dev
+          - libusbredirparser-dev
           - valgrind
           - xfslibs-dev
           # - libvirt-bin
@@ -258,6 +260,8 @@
       pip:
         name: virtualenv
         executable: pip3
+      environment:
+        PATH: /usr/bin:/usr/local/bin
 
     - name: Download {{ app_name }} tarball
       get_url:

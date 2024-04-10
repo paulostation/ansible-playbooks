@@ -12,6 +12,10 @@
   include_tasks:
     file: install_ninja.yml
 
+- name: Installing Libvirt
+  include_tasks:
+    file: libvirtd.yml
+
 - name: Install spice
   include_tasks:
     file: install_spice.yml
@@ -23,10 +27,6 @@
 - name: Install virt-manager
   include_tasks:
     file: virt-manager.yml
-
-- name: Installing Libvirt
-  include_tasks:
-    file: libvirtd.yml
 
 - name: Create groups
   group:
@@ -46,4 +46,11 @@
     comment: "libvirtd system user"
     state: present
     group: libvirt-qemu
+  become: true
+
+- name: Copy dependencies
+  copy: 
+    src: /tmp/virt-manager/virt-manager-4.1.0/virtinst
+    dest: /usr/share/virt-manager
+    mode: 0755
   become: true
