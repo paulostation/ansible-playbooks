@@ -48,28 +48,33 @@
       tags:
         - create-dir
 
+    - name: Install pip dependencies within a user home directory
+      pip:
+        name: libvirt-python
+        extra_args: --user
+      
     - name: Install dependencies
       apt:
         name:
-          - accountsservice-ubuntu-schemas
-          - gir1.2-libosinfo-1.0
-          - gir1.2-libvirt-glib-1.0
+          # - accountsservice-ubuntu-schemas
+          # - gir1.2-libosinfo-1.0
+          # - gir1.2-libvirt-glib-1.0
           - libgeonames-common
           - libgeonames0
           - libtimezonemap-data
           - libtimezonemap1
           - libtpms0
-          - libvirt-glib-1.0-0
+          # - libvirt-glib-1.0-0
           # - libvirt-l10n
           # - libvirt0
           - mdevctl
-          - python3-libvirt
+          # - python3-libvirt
           - python3-libxml2
           - swtpm
           - swtpm-tools
           - docutils-common
           # - python-libvirt
-          - virtinst
+          # - virtinst
       become: true
 
     - name: Extract {{ app_name }} tarball into /opt
@@ -104,3 +109,10 @@
           export PYTHONPATH=/usr/share/virt-manager:$PYTHONPATH
           # always use system-wide daemon
           export VIRSH_DEFAULT_CONNECT_URI=qemu:///system
+    
+    # this is needed for virt-install
+    - name: Set setuid bit on qemu-bridge-helper
+      become: yes  # Run the command with escalated privileges (usually sudo)
+      file:
+        path: /usr/lib/qemu/qemu-bridge-helper
+        mode: u+s

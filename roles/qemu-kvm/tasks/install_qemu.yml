@@ -211,7 +211,7 @@
           - libpixman-1-dev
           - libcairo2-dev
           - libpango1.0-dev
-          - libjpeg8-dev
+          # - libjpeg8-dev
           - libgif-dev
           - libfdt-dev
           - libjack-jackd2-dev
@@ -229,7 +229,7 @@
           - libcurl4-gnutls-dev
           - libgtk-3-dev
           - libibverbs-dev
-          - libjpeg8-dev
+          # - libjpeg8-dev
           - libncurses5-dev
           - libnuma-dev
           - librbd-dev
@@ -250,8 +250,8 @@
           - valgrind
           - xfslibs-dev
           # - libvirt-bin
-          - libvirt-daemon-system
-          - libvirt-clients
+          # - libvirt-daemon-system
+          # - libvirt-clients
           - bridge-utils
         state: present
       become: true
@@ -374,6 +374,9 @@
         # force: yes
         src: "{{ install_dir }}/qemu-{{ app_version }}/build/{{ item }}"
         dest: /usr/bin/{{ item }}
+        owner: libvirt-qemu
+        group:  kvm
+        mode: 0550
       tags:
         - create-dir
       with_items:
@@ -386,6 +389,7 @@
         - qemu-pr-helper
         - qemu-bridge-helper
       become: true
+      ignore_errors: true
 
     - name: The next command tells apt where to find the packages
       blockinfile:
@@ -398,4 +402,5 @@
       shell: qemu-system-x86_64 --version | grep -oP '\d+\.\d+\.\d+'
       register: qemu_kvm_version
       failed_when: qemu_kvm_version.stdout != app_version
+      become: true
 

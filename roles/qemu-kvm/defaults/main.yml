@@ -6,3 +6,4 @@ libvirtd_version: 9.10.0
 update_libvirtd: false
 update_virt_manager: false
 update_qemu_kvm: false
+verbose_output: false

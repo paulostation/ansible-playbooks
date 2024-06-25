@@ -20,8 +20,9 @@
     - name: Cleanup leftovers from other libvirt installs
       apt:
         name:
-          # - libvirt-bin
+          - libvirt-bin
           - libvirt-clients
+          - qemu-kvm 
           - libvirt-daemon
           - libvirt-daemon-config-network
           - libvirt-daemon-config-nwfilter
@@ -29,9 +30,9 @@
           - libvirt-daemon-system
           - libvirt-daemon-system-systemd
           - libvirt-dev:amd64
-          # - libvirt-glib-1.0-0:amd64
-          # - libvirt-glib-1.0-data
-          # - libvirt0:amd64
+          - libvirt-glib-1.0-0:amd64
+          - libvirt-glib-1.0-data
+          - libvirt0:amd64
           - python3-libvirt
         state: absent
         purge: yes
@@ -47,10 +48,28 @@
         - libvirtd
       become: true
 
-    - name: Cleanup leftovers from other installs
+    - name: Cleanup leftovers binaries from other installs
+      block:
+        - name: Remove existing libvirtd binary
+          file:
+            path: "/usr/sbin/libvirtd"
+            state: absent
+          become: true
+
+        - name: Remove existing virsh binary
+          file:
+            path: "/usr/bin/virsh"
+            state: absent
+          become: true
+    
+    - name: Cleaning leftover libraries from other installs
       file:
-        path: "/usr/sbin/libvirtd"
+        path: /usr/lib/x86_64-linux-gnu/{{ item }}
         state: absent
+      with_items:
+        - libvirt.so.0
+        - libvirt-qemu.so.0
+        - libvirt-lxc.so.0
       become: true
 
     - name: Install requirements
@@ -66,6 +85,7 @@
           # - libvirt-libs
           - libpciaccess-dev
           - systemtap-sdt-dev
+          - python3-docutils
           - uuid-dev
           - libtool
           - autoconf
@@ -77,7 +97,7 @@
           - libnuma-dev
           - numad
           - gettext
-          - python3-libvirt
+          # - python3-libvirt
           - libgnutls28-dev
           - libxml2-dev
           # - libxml2
@@ -93,7 +113,8 @@
       environment:
           PKG_CONFIG: /usr/bin/pkg-config
           PATH: /usr/bin:/usr/local/bin
-      command: meson setup --reconfigure build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
+      #command: meson setup --reconfigure build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
+      command: meson setup build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
       args:
         chdir: /tmp/libvirt/
       register: configure_output
@@ -108,12 +129,12 @@
         msg: "{{ msg.split('\n') }}"
 
 
-    - name: build using ninja
+    - name: configure libvirtd using ninja
       command: ninja -C build
       args:
         chdir: /tmp/libvirt/
 
-    - name: build using ninja
+    - name: build libvirtd using ninja
       command: sudo ninja -C build install
       args:
         chdir: /tmp/libvirt/
@@ -138,19 +159,60 @@
           unix_sock_rw_perms = "0770"
           unix_sock_admin_perms = "0700"
 
+          # Log filters for debug output
+          log_filters="1:libvirt 1:qemu 1:security 1:util 1:rpc"
+
+          # Log output to a specific file
+          log_outputs="1:file:/var/log/libvirt/libvirtd.log"
+
+          dns_listen_port = "5352"
+
       become: true
 
-    - name: Cleanup leftovers from other installs
+    - name: Create symlink for libvirt.so.0.9010.0
       file:
-        path: "/etc/polkit-1/localauthority.conf.d/50-local.d"
-        state: directory
+        src: "{{ item.from }}" 
+        dest: "{{ item.to }}"
+        state: link
       become: true
+      with_items:
+        - from: /usr/local/lib/x86_64-linux-gnu/libvirt.so.0.9010.0
+          to: /usr/lib/x86_64-linux-gnu/libvirt.so.0
+        - from: /usr/local/lib/x86_64-linux-gnu/libvirt-qemu.so.0.9010.0
+          to: /usr/lib/x86_64-linux-gnu/libvirt-qemu.so.0
+        - from: /usr/local/lib/x86_64-linux-gnu/libvirt-lxc.so.0.9010.0
+          to: /usr/lib/x86_64-linux-gnu/libvirt-lxc.so.0
+
+    - name: Copy virsh binary
+      copy: 
+        src: /tmp/libvirt/build/tools/virsh
+        dest: /usr/bin/virsh
+        mode: 0755
+        remote_src: True
+      become: true
+
+    # - name: Setup polkit dir
+    #   file:
+    #     path: "/etc/polkit-1/localauthority/50-local.d"
+    #     state: directory
+    #   become: true
 
     - name: Copy polkit config file
       copy:
         src: libvirt-manage.pkla
-        dest: /etc/polkit-1/localauthority.conf.d/50-local.d/libvirt-manage.pkla
-        mode: 0640
+        dest: /etc/polkit-1/rules.d/libvirt-manage.pkla
+        mode: 0644
+      become: true
+
+    - name: Copy AppArmor custom policy
+      copy:
+          src: app-armor.policy
+          dest: /etc/apparmor.d/local/usr.sbin.libvirtd-custom
+          mode: 0644
+      become: true
+
+    - name: Reload libvirtd aa policy changed profiles
+      command: apparmor_parser --replace "/etc/apparmor.d/local/usr.sbin.libvirtd-custom"
       become: true
 
     - name: Copy QEMU config file /etc/libvirt
@@ -160,6 +222,34 @@
         mode: 0640
       become: true
 
+    # needed for virt-install to work
+    - name: Configure virbr0 
+      ansible.builtin.blockinfile:
+        path: /etc/qemu/bridge.conf
+        create: true
+        block: |
+          # Example bridge configuration for QEMU/libvirt
+          allow virbr0
+        mode: 0640
+      become: true
+
+    # - name: Configure virbr0 
+    #   ansible.builtin.blockinfile:
+    #     path: /etc/network/interfaces
+    #     create: true
+    #     block: |
+    #       # Bridge interface for virtual machines (virbr0)
+    #       auto virbr0
+    #       iface virbr0 inet static
+    #           address 192.168.122.1        # IP address for the bridge interface
+    #           netmask 255.255.255.0        # Subnet mask
+    #           bridge_ports none            # No physical ports attached directly
+    #           bridge_fd 0                  # No forwarding delay
+    #           bridge_maxwait 0             # No delay before a port becomes available
+    #           bridge_stp off               # Disable Spanning Tree Protocol (STP)
+
+    #   become: true
+    
     - name: Make sure the service unit is running
       systemd:
         enabled: yes
@@ -170,14 +260,13 @@
       tags:
         - systemd
       become: true
-      failed_when: false
-      # failed_when: libvirtd_output.status.ActiveState | default('') == "failed"
+      failed_when: libvirtd_output.status.ActiveState | default('') == "failed"
 
-    #- debug:
-    #    msg: "Libvirt daemon is {{ libvirtd_output.status.ActiveState | default('') }} since {{ libvirtd_output.status.ActiveEnterTimestamp | default('') }}"
-    #  when: libvirtd_output.status.ActiveState != "inactive"
-    #  tags:
-    #    - systemd
+    - debug:
+       msg: "Libvirt daemon is {{ libvirtd_output.status.ActiveState | default('') }} since {{ libvirtd_output.status.ActiveEnterTimestamp | default('') }}"
+      when: libvirtd_output.status.ActiveState != "inactive"
+      tags:
+       - systemd
 
     - name: Systemd output
       vars:
@@ -188,6 +277,7 @@
         msg: "{{ msg.split('\n') }}"
       tags:
         - systemd
+      when: verbose_output | bool == true
 
     - name: Changing /etc/environment to include libvirt.so.0 in LD_LIBRARY_PATH
       become: true
