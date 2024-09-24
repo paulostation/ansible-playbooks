@@ -1,0 +1,17 @@
+---
+- name: Configurar WinRM no host Windows
+  hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Ativar WinRM
+      ansible.windows.win_feature:
+        name: "WinRM"
+        state: present
+
+    - name: Configurar WinRM para Ansible
+      ansible.windows.win_shell: |
+        winrm quickconfig -force
+        winrm set winrm/config/service/auth @{Basic="true"}
+        winrm set winrm/config/service @{AllowUnencrypted="true"}
+        winrm set winrm/config/winrs @{MaxMemoryPerShellMB="512"}
+        netsh advfirewall firewall add rule name="Ansible" dir=in action=allow protocol=TCP localport=5985
