@@ -1,0 +1,13 @@
+---
+- name: Run PowerShell Script on Windows Host
+  hosts: all
+  tasks:
+
+    - name: Execute the PowerShell script on the Windows host
+      win_shell: |
+        powershell.exe -ExecutionPolicy Bypass -File C:\temp\notepad.ps1
+      register: script_output
+
+    - name: Display the output of the PowerShell script
+      debug:
+        msg: "{{ script_output.stdout }}"
