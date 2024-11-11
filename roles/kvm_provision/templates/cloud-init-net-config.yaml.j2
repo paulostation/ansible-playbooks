@@ -4,6 +4,10 @@ network:
         ens3:
             dhcp4: yes
             dhcp6: yes
+            nameservers:
+              addresses:
+                - 1.1.1.1
+                - 1.0.0.1  # Optionally, add a secondary DNS server
 
         ens6:
             dhcp4: no

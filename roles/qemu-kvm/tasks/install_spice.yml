@@ -52,6 +52,7 @@
       command: meson setup build
       environment:
         PKG_CONFIG: /usr/bin/pkg-config
+        PKG_CONFIG_PATH: "{{ lookup('env', 'PKG_CONFIG_PATH') }}:/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
         PATH: /usr/bin:/usr/local/bin
       args:
         chdir: /tmp/spice/

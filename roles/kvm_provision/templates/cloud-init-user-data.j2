@@ -9,7 +9,7 @@ users:
   - name: ubuntu
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
-    lock_passwd: falsev
+    lock_passwd: false
     ssh-authorized-keys:
       - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJxduSIrlr3Me8KXxoEETJijsvH9UpwzqJ4ESHMb2DL4"
       - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMCVQtAb9abo2PZPpkkk3MyPCXK7GjZj3ZyZO5HawQVT"
@@ -19,16 +19,17 @@ chpasswd:
   expire: false
 runcmd:
  - [ sh, -c, echo 127.0.0.1 {{ vm_name }} | tee -a /etc/hosts]
- - sudo apt install linux-modules-extra-`uname -r`
+{% if install_desktop is defined %}
+ - sudo apt install -y --no-install-recommends ubuntu-desktop
+ - sudo apt install -y telegram-desktop
+ - sudo apt install -y linux-modules-extra-`uname -r`
+ - wget https://dist.torproject.org/torbrowser/13.0.14/tor-browser-linux-x86_64-13.0.14.tar.xz
+{% endif %}
 package_update: true  # Update package lists before installing packages
 packages:
-{% if install_desktop is defined %}
-  - ubuntu-desktop
-  - telegram-desktop
-{% endif %}
   - net-tools
   - dnsutils
   - tmux
   - git
   - python3-pip
-  # - linux-modules-extra-*
+  - libdbus-glib-1-2

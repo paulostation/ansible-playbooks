@@ -12,6 +12,7 @@
       become: true
       tags:
         - syncthing
+        - infra
 
     - role: vscode
       become: true
@@ -19,7 +20,11 @@
         - dev
         - vscode
 
-    # - cloudalchemy.node_exporter
+    - role: cloudalchemy.node_exporter
+      become: true
+      tags:
+        - infra
+        - metrics
 
     - role: geerlingguy.docker
       become: true

@@ -126,6 +126,8 @@
         - qemu-hexagon
         - qemu-i386
         - qemu-io
+        - qemu-keymap
+        - qemu-bridge-helper
         - qemu-pr-helper
         - qemu-img
         - qemu-loongarch64

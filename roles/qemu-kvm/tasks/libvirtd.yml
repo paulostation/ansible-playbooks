@@ -17,34 +17,32 @@
 - name: Install libvirtd
   when: virsh_output.rc != 0 or libvirtd_installed_version.stdout != libvirtd_version or update_libvirtd | bool == true
   block:
-    - name: Cleanup leftovers from other libvirt installs
-      apt:
-        name:
-          - libvirt-bin
-          - libvirt-clients
-          - qemu-kvm 
-          - libvirt-daemon
-          - libvirt-daemon-config-network
-          - libvirt-daemon-config-nwfilter
-          - libvirt-daemon-driver-qemu
-          - libvirt-daemon-system
-          - libvirt-daemon-system-systemd
-          - libvirt-dev:amd64
-          - libvirt-glib-1.0-0:amd64
-          - libvirt-glib-1.0-data
-          - libvirt0:amd64
-          - python3-libvirt
-        state: absent
-        purge: yes
-      become: true
+    # - name: Cleanup leftovers from other libvirt installs
+    #   apt:
+    #     name:
+    #       # - libvirt-bin
+    #       - libvirt-clients
+    #       - qemu-kvm 
+    #       - libvirt-daemon
+    #       # - libvirt-daemon-config-network
+    #       # - libvirt-daemon-config-nwfilter
+    #       # - libvirt-daemon-driver-qemu
+    #       # - libvirt-daemon-system
+    #       # - libvirt-daemon-system-systemd
+    #       # - libvirt-dev:amd64
+    #       # - libvirt-glib-1.0-0:amd64
+    #       # - libvirt-glib-1.0-data
+    #       - libvirt0:amd64
+    #       - python3-libvirt
+    #     state: absent
+    #     purge: yes
+    #   become: true
 
     - name: Create groups
       group:
         name: "{{ item }}"
         state: present
       with_items:
-        #- libvirt-qemu
-        #- libvirt
         - libvirtd
       become: true
 
@@ -59,6 +57,12 @@
         - name: Remove existing virsh binary
           file:
             path: "/usr/bin/virsh"
+            state: absent
+          become: true
+
+        - name: Remove existing git repo
+          file:
+            path: "/tmp/libvirt"
             state: absent
           become: true
     
@@ -82,7 +86,6 @@
           - libxml-xpath-perl
           - libyajl-dev
           - libdevmapper-dev
-          # - libvirt-libs
           - libpciaccess-dev
           - systemtap-sdt-dev
           - python3-docutils
@@ -90,31 +93,29 @@
           - libtool
           - autoconf
           - pkg-config
+          - libjson-c-dev
           - libxml2
           - libxml2-utils
+          - libssh-dev
           - autopoint
-          #- python-dev
           - libnuma-dev
           - numad
           - gettext
-          # - python3-libvirt
           - libgnutls28-dev
           - libxml2-dev
-          # - libxml2
       become: true
 
     - name: Cloning libvirt git repo
       git:
         repo: 'https://gitlab.com/libvirt/libvirt.git'
         dest: /tmp/libvirt
-        version: "v9.10.0"
+        version: "v10.9.0"
 
     - name: configure using meson
       environment:
-          PKG_CONFIG: /usr/bin/pkg-config
-          PATH: /usr/bin:/usr/local/bin
-      #command: meson setup --reconfigure build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
-      command: meson setup build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
+          PKG_CONFIG_PATH: "{{ lookup('env', 'PKG_CONFIG_PATH') }}:/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+          PATH: /home/paulo/.local/bin/:/usr/bin:/usr/local/bin
+      command: meson setup --reconfigure build -Dsystem=true  -Ddriver_qemu=enabled -Ddriver_libvirtd=enabled -Ddriver_remote=enabled
       args:
         chdir: /tmp/libvirt/
       register: configure_output
@@ -128,18 +129,43 @@
       debug:
         msg: "{{ msg.split('\n') }}"
 
-
-    - name: configure libvirtd using ninja
-      command: ninja -C build
-      args:
-        chdir: /tmp/libvirt/
+    - fail:
+      when: configure_output.rc != 0
 
     - name: build libvirtd using ninja
-      command: sudo ninja -C build install
+      environment:
+        PKG_CONFIG_PATH: "{{ lookup('env', 'PKG_CONFIG_PATH') }}:/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+        PATH: /usr/bin:/usr/local/bin
+      command: ninja -v -C build
+      register: build_output
+      args:
+        chdir: /tmp/libvirt/
+      ignore_errors: true
+
+    - name: Debug
+      vars:
+        msg: |
+            Build output:
+            {{ build_output.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
+    - debug:
+        msg: "{{ build_output.rc }}"
+    
+    - fail:
+      when: build_output.rc != 0
+
+    - name: build libvirtd using ninja
+      environment:
+        PKG_CONFIG_PATH: "{{ lookup('env', 'PKG_CONFIG_PATH') }}:/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+        PATH: /usr/bin:/usr/local/bin
+      command: sudo ninja -v -C build install
       args:
         chdir: /tmp/libvirt/
       become: true
       register: install_output
+      ignore_errors: true
 
     - name: Debug
       vars:
@@ -148,6 +174,9 @@
             {{ install_output.stdout }}
       debug:
         msg: "{{ msg.split('\n') }}"
+
+    - fail:
+      when: install_output.rc != 0
 
     - name: Configure libvirtd access
       ansible.builtin.blockinfile:
@@ -191,11 +220,11 @@
         remote_src: True
       become: true
 
-    # - name: Setup polkit dir
-    #   file:
-    #     path: "/etc/polkit-1/localauthority/50-local.d"
-    #     state: directory
-    #   become: true
+    - name: Setup polkit dir
+      file:
+        path: "/etc/polkit-1/rules.d"
+        state: directory
+      become: true
 
     - name: Copy polkit config file
       copy:

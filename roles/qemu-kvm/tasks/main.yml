@@ -18,21 +18,22 @@
   include_tasks:
     file: install_ninja.yml
 
-- name: Installing Libvirt
-  include_tasks:
-    file: libvirtd.yml
-
 - name: Install spice
   include_tasks:
     file: install_spice.yml
+
+- name: Install virt-manager
+  include_tasks:
+    file: install_virt-viewer.yml
+
+- name: Installing Libvirt
+  include_tasks:
+    file: libvirtd.yml
 
 - name: Installing qemu
   include_tasks:
     file: install_qemu.yml
 
-- name: Install virt-manager
-  include_tasks:
-    file: virt-manager.yml
 
 - name: Create groups
   group:
@@ -54,13 +55,13 @@
     group: libvirt-qemu
   become: true
 
-- name: Copy dependencies
-  copy: 
-    src: /tmp/virt-manager/virt-manager-4.1.0/virtinst
-    dest: /usr/share/virt-manager
-    mode: 0755
-    remote_src: True
-  become: true
+# - name: Copy dependencies
+#   copy: 
+#     src: /tmp/virt-manager/virt-manager-4.1.0/virtinst
+#     dest: /usr/share/virt-manager
+#     mode: 0755
+#     remote_src: True
+#   become: true
   
 
 # add this to check if install was successful, a cloud-init image should be easy enough to install
