@@ -115,11 +115,13 @@
     - name: Download base image
       get_url:
         url: "{{ base_image_url }}"
-        dest: "/tmp/{{ base_image_name }}"
-        # mode: 0774
-        # owner: libvirt-qemu
-        # group: kvm
+        # dest: "{{ libvirt_pool_dir }}/base/{{ base_image_name }}"
+        dest: "{{ libvirt_pool_dir }}/base/{{ base_image_name }}"
+        mode: 0774
+        owner: libvirt-qemu
+        group: kvm
         # checksum: "sha256:{{ base_image_sha }}"
+      become: true
 
     - name: Generate storage volume XML
       template:
@@ -127,7 +129,7 @@
         dest: /tmp/generated_storage_volume.xml  # Specify the destination path for the generated XML
       vars:
         volume_name: "{{ base_image_name }}"
-        file_path: "/tmp/{{ base_image_name }}"
+        file_path: "{{ libvirt_pool_dir }}/base/{{ base_image_name }}"
 
 # - name: Define the storage volume
 #   community.libvirt.virt.virt_pool:
@@ -147,7 +149,7 @@
 
     - name: Generate a QEMU VM disk
       command: >
-        virsh -c qemu:///system vol-upload --pool {{ libvirt_pool_name }} {{ base_image_name }} "/tmp/{{ base_image_name }}"
+        virsh -c qemu:///system vol-upload --pool {{ libvirt_pool_name }} {{ base_image_name }} "{{ libvirt_pool_dir }}/base/{{ base_image_name }}"
       register: volume_creation_result
 
 - name: Generate cloudinit user data file from template

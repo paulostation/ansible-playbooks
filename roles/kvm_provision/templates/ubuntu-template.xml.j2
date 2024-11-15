@@ -1,11 +1,17 @@
-<domain type='kvm'>
+<domain type="kvm">
     <name>{{ vm_name }}</name>
+    <!-- <metadata> -->
+    <!-- <libosinfo:libosinfo xmlns:libosinfo="http://libosinfo.org/xmlns/libvirt/domain/1.0">
+        <libosinfo:os id="http://ubuntu.com/ubuntu/22.04" />
+    </libosinfo:libosinfo> -->
+    <!-- </metadata> -->
     <memory unit='MiB'>{{ vm_ram_mb }}</memory>
     <vcpu placement='static'>{{ vm_vcpus }}</vcpu>
     <os>
         <type arch='x86_64' machine='pc-i440fx-8.1'>hvm</type>
-        <loader readonly='yes' secure='no' type='pflash'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+        <loader readonly='yes' secure='no' type='pflash'>/usr/share/OVMF/OVMF_CODE_4M.fd</loader>
         <boot dev='hd' />
+        <bootmenu enable='yes'/>
     </os>
     <!-- ACPI é necessário para conseguir fazer um boot EFI -->
     <features>
@@ -29,6 +35,7 @@
             <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0' />
         </disk>
         <disk type='file' device='disk'>
+            <driver name='qemu' type='raw'/>
             <source file='{{ libvirt_pool_dir }}/{{ libvirt_pool_name }}/{{ vm_name }}_cidata.iso' />
             <target dev='vdb' bus='virtio' />
             <readonly/>
@@ -62,7 +69,6 @@
             <target type='isa-serial' port='0'>
                 <model name='isa-serial' />
             </target>
-            <alias name='serial0' />
         </serial>
         <input type='mouse' bus='ps2'>
         </input>
@@ -85,9 +91,9 @@
             <alias name='balloon0' />
             <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0' />
         </memballoon>
+        <!-- <rng model="virtio">
+            <backend model="random">/dev/urandom</backend>
+            <address type="pci" domain="0x0000" bus="0x06" slot="0x00" function="0x0" />
+        </rng> -->
     </devices>
-    <seclabel type='dynamic' model='dac' relabel='yes'>
-        <label>+64055:+108</label>
-        <imagelabel>+64055:+108</imagelabel>
-    </seclabel>
 </domain>

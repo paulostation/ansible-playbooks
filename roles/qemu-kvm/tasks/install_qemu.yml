@@ -255,6 +255,7 @@
           # - libvirt-daemon-system
           # - libvirt-clients
           - bridge-utils
+          - ovmf
         state: present
       become: true
 
@@ -262,8 +263,8 @@
       pip:
         name: virtualenv
         executable: pip3
-      environment:
-        PATH: /usr/bin:/usr/local/bin
+      # environment:
+        # PATH: /usr/bin:/usr/local/bin
 
     - name: Download {{ app_name }} tarball
       get_url:
