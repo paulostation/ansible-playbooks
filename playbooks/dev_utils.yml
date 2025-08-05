@@ -19,6 +19,18 @@
       tags:
         - dev
         - vscode
+
+    - role: cloudalchemy.node_exporter
+      become: true
+      tags:
+        - infra
+        - metrics
+
+    # - role: slack
+    #   become: true
+    #   tags:
+    #     - dev
+
     - role: indicator-sysmonitor
       become: true
       tags:
