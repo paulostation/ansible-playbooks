@@ -12,3 +12,7 @@
   ansible.builtin.include_tasks:
     file: install.yml
   when: not syncthing_bin.stat.exists or syncthing_is_an_upgrade
+
+- name: Configure Syncthing
+  include_tasks:
+    file: configure.yml
