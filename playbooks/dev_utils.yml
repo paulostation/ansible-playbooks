@@ -1,0 +1,9 @@
+---
+- name: playbook de teste
+  hosts: all
+
+  roles:
+    - role: dev.utils
+      become: true
+      tags:
+        - dev
