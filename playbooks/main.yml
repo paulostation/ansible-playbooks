@@ -27,3 +27,8 @@
       become: true
       tags:
         - networking
+
+    - role: qemu-kvm
+      become: true
+      tags:
+        - libvirtd
