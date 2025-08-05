@@ -1,0 +1,20 @@
+- name: Install dependencies
+  pip:
+    name: lxml
+
+- name: Debug
+  # vars:
+  #   msg: |
+  #       Checking audio status
+  #       pactl output:
+  #       {{ pactl_output.stdout }}
+  debug:
+    msg: "{{ devices_to_add }}"
+
+
+- name: Add configured devices
+  command: syncthing cli config devices add --device-id {{ item.device_id }} --name {{ item.name }}
+  with_items:
+    "{{ devices_to_add }}"
+  become: yes
+  become_user: syncthing
