@@ -1,0 +1,8 @@
+#RUN COMMAND: ansible-galaxy install -r requirements.yml
+
+collections:
+- name: prometheus.prometheus
+- name: kubernetes.core
+roles:
+- name: geerlingguy.docker
+
