@@ -1,0 +1,10 @@
+# Ubuntu/Debian
+# New rules files are written in JavaScript unsupported. (need pkaction 0.106+)
+# /etc/polkit-1/localauthority/50-local.d/libvirt-manage.pkla
+
+[libvirt Management Access]
+Identity=unix-group:libvirtd
+Action=org.libvirt.unix.manage
+ResultActive=yes
+ResultInactive=yes
+ResultAny=yes

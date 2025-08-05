@@ -1,0 +1,8 @@
+# Last Modified: [current_date]
+#include <tunables/global>
+
+profile usr.sbin.libvirtd-custom {
+    # Allow libvirtd to execute qemu-system-x86_64 and other dependencies
+    /opt/qemu-kvm/qemu-8.1.1/build/** mr,
+    /opt/qemu-kvm/qemu-8.1.1/build/qemu-system-x86_64 ix,
+}
