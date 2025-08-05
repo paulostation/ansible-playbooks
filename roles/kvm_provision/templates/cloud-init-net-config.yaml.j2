@@ -1,0 +1,25 @@
+network:
+    version: 2
+    ethernets:
+        ens3:
+            dhcp4: yes
+            dhcp6: yes
+            nameservers:
+              addresses:
+                - 1.1.1.1
+                - 1.0.0.1  # Optionally, add a secondary DNS server
+
+        ens6:
+            dhcp4: no
+            dhcp6: no
+            addresses:
+                - 10.17.0.9/24
+            #nameservers:
+            #    addresses:
+            #    - 192.168.15.1
+            #    - 8.8.4.4
+            #gatIeway4: 192.168.15.1
+            #routes:
+            #    - to: 192.168.0.0/24
+            #    via: 192.168.0.1
+            #    metric: 2000
