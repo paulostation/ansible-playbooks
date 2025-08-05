@@ -1,0 +1,9 @@
+---
+- name: Setup neovim
+  hosts: all
+  roles:
+    - role: nvim_setup
+      tags:
+        - nvim
+        - dev
+
