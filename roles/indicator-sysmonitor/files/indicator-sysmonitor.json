@@ -1,0 +1,71 @@
+{
+    "custom_text": "CPU: {cpu} {cputemp} | mem: {mem} swap: {swap} | net: {upordown} {net} | {publicip}",
+    "interval": 2.0,
+    "on_startup": false,
+    "sensors": {
+        "cpu\\d*": [
+            "Average CPU usage",
+            true
+        ],
+        "nvgpu": [
+            "Nvidia GPU utilization",
+            true
+        ],
+        "mem": [
+            "Physical memory in use.",
+            true
+        ],
+        "net": [
+            "Network activity.",
+            true
+        ],
+        "netcomp": [
+            "Network activity in Compact form.",
+            true
+        ],
+        "totalnet": [
+            "Total Network activity.",
+            true
+        ],
+        "bat\\d*": [
+            "Battery capacity.",
+            true
+        ],
+        "fs//.+": [
+            "Available space in file system.",
+            true
+        ],
+        "swap": [
+            "Average swap usage",
+            true
+        ],
+        "upordown": [
+            "Display if your internet connection is up or down",
+            true
+        ],
+        "publicip": [
+            "Display your public IP address",
+            true
+        ],
+        "cputemp": [
+            "CPU temperature",
+            true
+        ],
+        "nvgputemp": [
+            "Nvidia GPU Temperature",
+            true
+        ],
+        "airpod_l": [
+            "Left airpod battery",
+            "BAT_L=$(tail -n 1 /tmp/airstatus.out | jq .charge.left); if [ $BAT_L -eq -1 ]; then echo charging;else echo $BAT_L;fi"
+        ],
+        "airpod_r": [
+            "Right airpod battery",
+            "BAT_R=$(tail -n 1 /tmp/airstatus.out | jq .charge.right); if [ $BAT_R -eq -1 ]; then echo charging;else echo $BAT_R;fi"
+        ],
+        "airpod_case": [
+            "AirPods case battery",
+            "BATT=$(tail -n 1 /tmp/airstatus.out | jq .charge.case); if [ $BATT -eq -1 ]; then echo charging;else echo $BATT;fi"
+        ]
+    }
+}
