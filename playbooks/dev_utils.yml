@@ -26,6 +26,11 @@
         - infra
         - metrics
 
+    - role: geerlingguy.docker
+      become: true
+      tags:
+        - docker
+
     # - role: slack
     #   become: true
     #   tags:
