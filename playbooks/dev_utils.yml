@@ -13,6 +13,12 @@
       tags:
         - syncthing
         - infra
+
+    - role: vscode
+      become: true
+      tags:
+        - dev
+        - vscode
     - role: indicator-sysmonitor
       become: true
       tags:
