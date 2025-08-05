@@ -8,7 +8,17 @@
     msg: Jellyfin is currently installed
   when: jellyfin_bin.stat.exists
 
+- name: task to run for x86 architecture
+  set_fact:
+    deb_architecture: amd64
+  when: ansible_architecture == "x86_64"
+
+- name: Set architecture for ARM architecture
+  set_fact:
+    architecture: armhf
+  when: ansible_architecture == "arm64"
+
 - name: Installing Jellyfin
   ansible.builtin.include_tasks:
     file: install.yml
-  when: not jellyfin_bin.stat.exists or jellyfin_is_an_upgrade
+  when: (not jellyfin_bin.stat.exists or jellyfin_is_an_upgrade) and ansible_architecture == "x86_64"
