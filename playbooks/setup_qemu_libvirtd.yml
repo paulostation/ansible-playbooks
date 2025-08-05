@@ -1,0 +1,13 @@
+---
+- name: Setup QEMU and Libvirtd
+  hosts: all
+
+  roles:
+    - role: qemu-kvm
+      tags:
+        - qemu-kvm
+
+    #- role: ansible-pulseaudio
+    #  become: true
+    #  tags:
+    #    - pulseaudio

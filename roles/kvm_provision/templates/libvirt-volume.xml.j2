@@ -1,0 +1,22 @@
+<volume>
+  <name>{{ volume_name }}</name>
+  <capacity unit="GiB"> {{ volume_capacity | default('1') }}</capacity>
+
+  <target>
+    <format type="qcow2"/>
+  </target>
+  <source>
+    <file>{{ file_path }}</file>
+  </source>
+  {% if backing_volume_path is defined %}
+  <backingStore>
+    <format type="qcow2"/>
+    <path>{{ backing_volume_path }}</path>
+    <index>1</index> <!-- Index number of the backing volume snapshot, typically 1 for the latest snapshot -->
+  </backingStore>
+
+    {% endif %}
+</volume>
+
+
+
