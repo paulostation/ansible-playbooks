@@ -1,0 +1,20 @@
+---
+- name: Add fossfreedom/indicator-sysmonitor repository
+  become: yes
+  apt_repository:
+    repo: "ppa:fossfreedom/indicator-sysmonitor"
+
+- name: Install indicator-sysmonitor
+  become: yes
+  apt:
+    name: indicator-sysmonitor
+    state: present
+    update_cache: yes
+
+- name: Copy sysmonitor indicator config
+  copy:
+    src: indicator-sysmonitor.json
+    dest: /home/{{ ansible_user }}/.indicator-sysmonitor.json
+    mode: 0644
+  tags:
+    - systemd
