@@ -1,0 +1,9 @@
+lokinet_standalone_install: false
+install_lokinet_vpn_manager: true
+lokinet_exit_node_url: x8ip9ajto9heyfbm5hrzh8eunwaqi8rrbxdhezf3gh9nyf88peqo.loki
+lokinet_exit_node_token: d1a11bfac1
+primary_network_interface: eth0
+secondary_network_interface: wlan0
+should_reboot: false
+reinstall_lokinet: false
+uninstall_lokinet: false

@@ -1,0 +1,128 @@
+---
+- name: Add lokinet APT key
+  apt_key:
+    url: https://deb.imaginary.stream/public.gpg
+    state: present
+  tags:
+    - apt
+
+- name: Hostname distribution
+  debug: msg="{{ansible_distribution_release}}"
+
+- name: The next command tells apt where to find the packages
+  ansible.builtin.blockinfile:
+    path: /etc/apt/sources.list.d/imaginary.stream.list
+    create: true
+    block: |
+      deb https://deb.imaginary.stream {{ ansible_distribution_release }} main
+
+- name: Install apt dependencies
+  apt:
+    name:
+      - lokinet
+      - iptables-persistent
+      - dnsmasq
+    state: present
+    update_cache: yes
+  register: apt_result
+  until: apt_result is succeeded  # Retry until the task succeeds
+  retries: 10  # Adjust the number of retries as needed
+  delay: 10  # Adjust the delay between retries as needed
+  ignore_errors: yes  # Ignore errors during retries
+
+
+- name: Disable resolved service
+  systemd:
+    name: systemd-resolved.service
+    enabled: no
+    state: stopped
+  tags:
+    - dns
+
+- name: Remove existing resolv.conf stuff
+  file:
+    path: /etc/resolv.conf
+    state: absent
+
+- name: Create temp resolv.conf file
+  become: true
+  shell: echo nameserver 1.1.1.1 | sudo tee /etc/resolv.conf
+  tags:
+    - dns
+
+- name: Copy iptables ruleset
+  when: lokinet_standalone_install | bool == false
+  template:
+    src: dnsmasq.conf.j2  # This is the path to your Jinja2 template
+    dest: /etc/dnsmasq.conf  # Specify the destination path for the generated XML
+    mode: 0755
+  tags:
+    - dns
+
+# - name: Install dnsmasq
+#   apt:
+#     name:
+#       - dnsmasq
+#     state: present
+#   tags:
+#     - dns
+
+- name: Make sure the DNS service unit is running
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: dnsmasq.service
+  tags:
+    - dns
+
+
+- name: Copy final resolv.conf file
+  copy:
+    src: standalone/resolv.conf
+    dest: /etc/resolv.conf
+    mode: 0755
+  tags:
+    - dns
+
+- name: Configure IPv4 forwarding
+  blockinfile:
+    path: /etc/sysctl.conf
+    block: |
+      net.ipv4.ip_forward = 1
+
+      net.ipv6.conf.all.forwarding = 0
+  become: true
+
+- name: Reload service lokinet-vpn, in all cases
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Copy lokinet.ini config file
+  copy:
+    src: lokinet.ini
+    dest: /var/lib/lokinet/lokinet.ini
+    mode: 0755
+
+- name: Copy lokinet-vpn daemon unit file
+  copy:
+    src: lokinet_vpn.service
+    dest: /etc/systemd/system/
+    mode: 0644
+
+- name: Reload service lokinet-vpn, in all cases
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable service lokinet monitor and ensure it is not masked
+  systemd:
+    name: lokinet_vpn.service
+    enabled: no
+    masked: no
+    state: stopped
+  tags:
+    - systemd
+
+- name: Schedule reboot
+  set_fact:
+    # vm: "ansible-vm-{{ lookup('community.general.random_string', length=4, upper=false, special=false) }}"
+    should_reboot: yes
