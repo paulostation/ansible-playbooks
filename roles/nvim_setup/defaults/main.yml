@@ -1,0 +1,2 @@
+nvim_config_source: "git"
+nvim_git_repo: https://github.com/paulostation/nvim
