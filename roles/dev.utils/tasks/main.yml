@@ -1,0 +1,42 @@
+- name: Install apt dependencies
+  apt:
+    name:
+      - net-tools
+      - git
+      - python3-pip
+    state: present
+    update_cache: yes
+  tags:
+    - apt
+
+
+- name: Install KeePassXC apt package
+  apt:
+    name: keepassxc
+    state: present
+    update_cache: yes
+
+- name: Install everyday use packages
+  apt:
+    name:
+    - tmux
+    - htop
+    - vim
+    state: present
+
+- name: Copy config files
+  copy:
+    src: "{{ item }}"
+    dest: /home/{{ ansible_user }}/{{ item }}
+    owner: "{{ ansible_user }}"
+    group:  "{{ ansible_user }}"
+    mode: 0644
+  with_items:
+    - .vimrc
+    - .zshrc
+  tags:
+    - config
+
+- name: Installing Oh My Zsh
+  include_tasks:
+    file: oh-my-zsh.yml
