@@ -1,0 +1,35 @@
+#cloud-config
+hostname: {{ vm_name }}
+fqdn: {{ vm_name }}
+manage_etc_hosts: false
+ssh_pwauth: false
+disable_root: false
+users:
+  - default
+  - name: ubuntu
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    ssh-authorized-keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJxduSIrlr3Me8KXxoEETJijsvH9UpwzqJ4ESHMb2DL4"
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMCVQtAb9abo2PZPpkkk3MyPCXK7GjZj3ZyZO5HawQVT"
+chpasswd:
+  list: |
+    ubuntu:$6$EvI5i.9CtcWPvo$KB2S7GB9VBgpUDNG4wDju5PRsDmP3x/xLfGcnLlnDYfKV4MLcH77x80RcfKLxOJCGbNBALh1YgRJLV9BKIMZm1
+  expire: false
+runcmd:
+ - [ sh, -c, echo 127.0.0.1 {{ vm_name }} | tee -a /etc/hosts]
+{% if install_desktop is defined %}
+ - sudo apt install -y --no-install-recommends ubuntu-desktop
+ - sudo apt install -y telegram-desktop
+ - sudo apt install -y linux-modules-extra-`uname -r`
+ - wget https://dist.torproject.org/torbrowser/13.0.14/tor-browser-linux-x86_64-13.0.14.tar.xz
+{% endif %}
+package_update: true  # Update package lists before installing packages
+packages:
+  - net-tools
+  - dnsutils
+  - tmux
+  - git
+  - python3-pip
+  - libdbus-glib-1-2

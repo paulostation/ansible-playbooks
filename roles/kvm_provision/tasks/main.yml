@@ -1,0 +1,263 @@
+---
+# tasks file for kvm_provision
+# - name: Ensure requirements in place
+#   package:
+#     name:
+#       - libguestfs-tools
+#       - python3-libvirt
+#     state: present
+#   become: true
+
+- name: Show vm name
+  debug:
+    msg: "{{ vm_name }}"
+
+- name: Delete {{ libvirt_pool_name }} pool
+  when: reset_pool | bool == true
+  block:
+    - name: Stop pool
+      community.libvirt.virt_pool:
+        command: destroy
+        name: "{{ libvirt_pool_name }}"
+      failed_when: false
+
+    - name: Undefine pool
+      community.libvirt.virt_pool:
+        command: undefine
+        name: "{{ libvirt_pool_name }}"
+      failed_when: false
+
+    - name: Delete pool contents
+      file:
+        path: "{{ libvirt_pool_dir }}/{{ libvirt_pool_name }}"
+        state: absent
+      become: true
+
+
+
+# Gather facts about storage pools
+# Facts will be available as 'ansible_libvirt_pools'
+- name: Gather facts about storage pools
+  community.libvirt.virt_pool:
+    command: facts
+
+# - name: After version 2.7 both 'msg' and 'fail_msg' can customize failing assertion message
+#   ansible.builtin.assert:
+#     that:
+#       - my_param <= 100
+#       - my_param >= 0
+#     fail_msg: "'my_param' must be between 0 and 100"
+#     success_msg: "'my_param' is between 0 and 100"
+
+- debug:
+    msg: "{{ ansible_libvirt_pools }}"
+
+- name: Create libvirt storage pool
+  when: libvirt_pool_name not in ansible_libvirt_pools.keys() or ansible_libvirt_pools[libvirt_pool_name].status != "running"
+  block:
+
+    - name: Ensure the Libvirt storage pool exists
+      community.libvirt.virt_pool:
+        command: define
+        name: "{{ libvirt_pool_name }}"
+        xml: '{{ lookup("template", "storage_pool.xml.j2") }}'
+      register: pool_creation_result
+
+    - name: Check the result of pool creation
+      debug:
+        var: pool_creation_result
+
+    - name: Build a storage pool if it does not exist
+      community.libvirt.virt_pool:
+        command: build
+        name: "{{ libvirt_pool_name }}"
+
+    - name: Ensure that a pool is active (needs to be defined and built first)
+      community.libvirt.virt_pool:
+        state: active
+        name: "{{ libvirt_pool_name }}"
+
+    - name: Ensure that a given pool will be started at boot
+      community.libvirt.virt_pool:
+        autostart: true
+        name: "{{ libvirt_pool_name }}"
+
+    - name: Change permissions of pool
+      file:
+        path: "{{ libvirt_pool_dir }}"
+        owner: libvirt-qemu
+        group: kvm
+        mode: "0774"  # Specify the desired file permissions in octal notation
+        recurse: yes  # Use "yes" to apply recursively to directories (optional)
+      become: true
+
+- name: List available pools
+  community.libvirt.virt_pool:
+    command: list_pools
+
+# Facts will be available as 'ansible_libvirt_pools'
+- name: Gather facts about storage pools
+  community.libvirt.virt_pool:
+    command: facts
+
+- name: Download base image
+  when: "ansible_libvirt_pools[libvirt_pool_name].volumes | length == 0 or base_image_name not in ansible_libvirt_pools[libvirt_pool_name].volumes"
+  block:
+    - name: Ensure base image directory exists.
+      file:
+        path: "{{ libvirt_pool_dir }}/base"
+        state: directory
+        mode: 0774
+        owner: libvirt-qemu
+        group: kvm
+      become: true
+
+    - name: Download base image
+      get_url:
+        url: "{{ base_image_url }}"
+        dest: "/tmp/{{ base_image_name }}"
+        # mode: 0774
+        # owner: libvirt-qemu
+        # group: kvm
+        # checksum: "sha256:{{ base_image_sha }}"
+
+    - name: Generate storage volume XML
+      template:
+        src: libvirt-volume.xml.j2  # This is the path to your Jinja2 template
+        dest: /tmp/generated_storage_volume.xml  # Specify the destination path for the generated XML
+      vars:
+        volume_name: "{{ base_image_name }}"
+        file_path: "/tmp/{{ base_image_name }}"
+
+# - name: Define the storage volume
+#   community.libvirt.virt.virt_pool:
+#     state: present
+#     name: "{{ libvirt_pool_name }}"
+#     xml: /tmp/generated_storage_volume.xml
+#   register: pool_volume_creation_result
+
+    - name: Create the storage volume
+      command: virsh -c qemu:///system vol-create --pool {{ libvirt_pool_name }} /tmp/generated_storage_volume.xml
+      register: pool_volume_creation_result
+
+    - name: Check the result of volume creation
+      debug:
+        var: pool_volume_creation_result.stdout
+
+
+    - name: Generate a QEMU VM disk
+      command: >
+        virsh -c qemu:///system vol-upload --pool {{ libvirt_pool_name }} {{ base_image_name }} "/tmp/{{ base_image_name }}"
+      register: volume_creation_result
+
+- name: Generate cloudinit user data file from template
+  template:
+    src: cloud-init-user-data.j2
+    dest: /tmp/userdata.yml
+
+- name: Generate cloudinit user data file from template
+  template:
+    src: cloud-init-net-config.yaml.j2
+    dest: /tmp/network-config.yml
+
+- name: Generate a QEMU VM disk
+  command: >
+    cloud-localds "/tmp/cidata.iso" --network-config=/tmp/network-config.yml /tmp/userdata.yml
+
+- name: Generate storage volume XML
+  template:
+    src: libvirt-volume.xml.j2  # This is the path to your Jinja2 template
+    dest: /tmp/cidata_iso_volume.xml  # Specify the destination path for the generated XML
+  vars:
+    volume_name: "{{ vm_name }}_cidata.iso"
+    file_path: "/tmp/cidata.iso"
+
+- name: Create the storage volume
+  command: virsh -c qemu:///system vol-delete --pool {{ libvirt_pool_name }} {{ vm_name }}_cidata.iso
+  failed_when: false
+
+- name: Create the storage volume
+  command: virsh -c qemu:///system vol-create --pool {{ libvirt_pool_name }} /tmp/cidata_iso_volume.xml
+  register: pool_volume_creation_result
+
+- name: Check the result of volume creation
+  debug:
+    var: pool_volume_creation_result.stdout
+
+- name: Upload data to the storage volume
+  command: virsh -c qemu:///system vol-upload --pool {{ libvirt_pool_name }} {{ vm_name }}_cidata.iso /tmp/cidata.iso
+  register: pool_volume_creation_result
+
+- name: Create volume from base image
+  command: virsh -c qemu:///system vol-clone --pool {{ libvirt_pool_name }} --vol {{ base_image_name }} --newname {{ vm_name }}.qcow2
+
+- name: Create volume from base image
+  command: virsh -c qemu:///system vol-resize --capacity 10G --pool {{ libvirt_pool_name }} --vol  {{ vm_name }}.qcow2
+
+- name: Create vm network
+  when: private_network_name is defined
+  block:
+
+    # - name: Generate {{ bridge_interface_name }} config file
+    #   template:
+    #     src: virbr.cfg.j2  # This is the path to your Jinja2 template
+    #     dest: /etc/network/interfaces.d/{{ bridge_interface_name }}.cfg  # Specify the destination path for the generated XML
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+    #   become: true
+
+    # - name: "Configure {{ bridge_interface_name }} interface"
+    #   interfaces:
+    #     state: present
+    #     interface: "{{ bridge_interface_name }}"
+    #     auto: yes
+    #     address: "{{ bridge_interface_addr }}"
+    #     netmask: "{{ bridge_interface_subnet_mask }}"
+    #     type: bridge
+    #   become: true
+
+    # - name: Bring up virbr1 interface
+    #   shell: "ifup {{ bridge_interface_name }}"
+    #   become: true
+
+    - name: Define a new network
+      community.libvirt.virt_net:
+        command: define
+        name: "{{ private_network_name }}"
+        xml: '{{ lookup("template", "libvirt-private-network.xml.j2") }}'
+
+    - name: Start a network
+      community.libvirt.virt_net:
+        command: create
+        autostart: true
+        name: "{{ private_network_name }}"
+      register: network_result
+
+    - name: Create make sure net is autostart
+      command: virsh -c qemu:///system net-autostart --network {{ private_network_name }}
+
+- debug:
+    var: network_result
+
+- name: Undefine vm
+  community.libvirt.virt:
+    command: undefine
+    guest: "{{ vm_name }}"
+    flags:
+      - nvram
+  failed_when: false
+
+- name: Define vm
+  community.libvirt.virt:
+    command: define
+    xml: "{{ lookup('template', 'ubuntu-template.xml.j2') }}"
+
+- name: Ensure VM is started
+  community.libvirt.virt:
+    name: "{{ vm_name }}"
+    state: running
+  register: vm_start_results
+  until: "vm_start_results is success"
+  retries: 10
+  delay: 2
