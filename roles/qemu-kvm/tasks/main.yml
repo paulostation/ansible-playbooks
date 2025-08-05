@@ -1,0 +1,78 @@
+---
+- name: Checking if jellyfin is already installed
+  stat:
+    path: /usr/bin/meson
+  register: meson_bin
+
+- name: Install meson
+  become: yes
+  apt:
+    name: 
+      - meson
+      - cloud-utils
+    state: present
+    update_cache: yes
+  when: not meson_bin.stat.exists
+
+- name: Installing Ninja
+  include_tasks:
+    file: install_ninja.yml
+
+- name: Install spice
+  include_tasks:
+    file: install_spice.yml
+
+- name: Install virt-manager
+  include_tasks:
+    file: install_virt-viewer.yml
+
+- name: Installing Libvirt
+  include_tasks:
+    file: libvirtd.yml
+
+- name: Installing qemu
+  include_tasks:
+    file: install_qemu.yml
+
+
+- name: Create groups
+  group:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - libvirt-qemu
+    - libvirt
+    - libvirtd
+  become: true
+
+- name: Add user for qemu and libvirt
+  user:
+    name: libvirt-qemu
+    shell: /sbin/nologin
+    create_home: no
+    comment: "libvirtd system user"
+    state: present
+    group: libvirt-qemu
+  become: true
+
+# - name: Copy dependencies
+#   copy: 
+#     src: /tmp/virt-manager/virt-manager-4.1.0/virtinst
+#     dest: /usr/share/virt-manager
+#     mode: 0755
+#     remote_src: True
+#   become: true
+  
+
+# add this to check if install was successful, a cloud-init image should be easy enough to install
+# /usr/local/bin/virt-install \
+#   --name ubuntu-cloud-init-guest \
+#   --os-variant ubuntu20.04 \
+#   --vcpus 4 \
+#   --ram 4096 \
+#   --disk pool=default,size=15 \
+#   --network bridge=virbr0,model=virtio \
+#   --graphics none \
+#   --location https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img \        
+#   --initrd-inject /tmp/cloudinit.cfg \
+#   --extra-args 'console=ttyS0,115200n8 serial'

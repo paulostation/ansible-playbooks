@@ -1,0 +1,408 @@
+# https://medium.com/@dorindabassey/pipewire-audio-backend-in-qemu-be014359475
+# https://looking-glass.io/wiki/Using_JACK_and_PipeWire
+- name: get user home directory
+  shell: |
+    getent passwd {{ ansible_user }}  | awk -F: '{ print $6 }'
+  changed_when: false
+  register: user_home
+
+- name: Concatenate the variable with a string
+  set_fact:
+    # install_dir: "{{ user_home.stdout }}/{{ app_name }}/{{ app_name }}-{{ app_version }}"
+    install_dir: "/opt/{{ app_name }}"
+
+- name: Directory where QEMU-KVM is going to be installed
+  debug:
+    var: install_dir
+
+- name: Check for presence of required files
+  stat:
+    path: /usr/bin/{{ item }}
+  loop:
+    - qemu-img
+    - qemu-system-x86_64
+    - qemu-edid
+    - qemu-io
+    - qemu-keymap
+    - qemu-nbd
+    - qemu-pr-helper
+    - qemu-bridge-helper
+  register: file_stats
+
+- name: Skip if all files are present
+  debug:
+    msg: "All required files are already present. {{ file_stats.results | map(attribute='stat.exists') | list }} {{ file_stats.results | map(attribute='stat.exists') | list is all }}"
+
+# TODO: check if it is really needed to put root user and group on /etc/libvirt/qemu.conf
+- name: Install qemu kvm
+  when: not file_stats.results | map(attribute='stat.exists') | list is all or update_qemu_kvm | bool == true
+  block:
+
+    - name: Create groups
+      group:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - libvirt-qemu
+        - libvirt
+        - libvirtd
+      become: true
+
+    - name: Add user for qemu and libvirt
+      user:
+        name: libvirt-qemu
+        shell: /sbin/nologin
+        create_home: no
+        comment: "libvirtd system user"
+        state: present
+        group: libvirt-qemu
+      become: true
+
+    # - fail:
+
+    # - name: Cleanup leftovers from other installs
+    #   apt:
+    #     name:
+    #       - qemu-kvm
+    #       - libvirt-bin
+    #       - ubuntu-vm-builder
+    #       - jack
+    #       - jack2
+    #       - pulseaudio
+    #       - pulseaudio-bluetooth
+    #       - bridge-utils
+    #     state: absent
+    #     purge: yes
+    #   become: true
+
+    # - name: Cleanup leftovers from other installs
+    #   file:
+    #     path: '{{ item }}'
+    #     state: absent
+    #     name:
+    #   with_items:
+    #     - /etc/kvm
+    #     - /etc/udev/rules.d/45-kvm.rules
+    #     - /etc/init.d/kvm
+    #     # - '{{ install_dir }}'
+    #   become: true
+
+    - name: Create groups
+      group:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        #- libvirt-qemu
+        #- libvirt
+        - libvirtd
+      become: true
+
+    - name: Add user for qemu and libvirt
+      user:
+        name: libvirt-qemu
+        shell: /sbin/nologin
+        create_home: no
+        comment: "libvirtd system user"
+        state: present
+        group: libvirt-qemu
+      become: true
+
+    - name: Remove files from leftover installs
+      file:
+        path: "/usr/bin/{{ item }}"
+        state: absent
+      ignore_errors: true  # Ignore errors if files do not exist
+      become: true
+      with_items:
+        - x86_64-softmmu/qemu-system-x86_64
+        - qemu-img
+        - qemu-aarch64
+        - qemu-aarch64_be
+        - qemu-arm
+        - qemu-armeb
+        - qemu-bundle
+        - qemu-cris
+        - qemu-edid
+        - qemu-hexagon
+        - qemu-i386
+        - qemu-io
+        - qemu-keymap
+        - qemu-bridge-helper
+        - qemu-pr-helper
+        - qemu-img
+        - qemu-loongarch64
+        - qemu-m68k
+        - qemu-microblaze
+        - qemu-microblazeel
+        - qemu-nbd
+        - qemu-nios2
+        - qemu-or1k
+        - qemu-riscv32
+        - qemu-riscv64
+        - qemu-s390x
+        - qemu-sh4
+        - qemu-sh4eb
+        - qemu.syms
+        - qemu-system-aarch64
+        - qemu-system-arm
+        - qemu-system-avr
+        - qemu-system-cris
+        - qemu-system-i386
+        - qemu-system-loongarch64
+        - qemu-system-m68k
+        - qemu-system-microblaze
+        - qemu-system-microblazeel
+        - qemu-system-nios2
+        - qemu-system-or1k
+        - qemu-system-riscv32
+        - qemu-system-riscv64
+        - qemu-system-rx
+        - qemu-system-s390x
+        - qemu-system-sh4
+        - qemu-system-sh4eb
+        - qemu-system-tricore
+        - qemu-system-x86_64
+        - qemu-system-xtensa
+        - qemu-system-xtensaeb
+        - qemu-x86_64
+        - qemu-xtensa
+        - qemu-xtensaeb
+        - qemu-m68k-static
+        - qemu-microblazeel-static
+        - qemu-microblaze-static
+        - qemu-mips64el-static
+        - qemu-mips64-static
+        - qemu-mipsel-static
+        - qemu-mipsn32el-static
+        - qemu-mipsn32-static
+        - qemu-mips-static
+        - qemu-nios2-static
+        - qemu-or1k-static
+        - qemu-ppc64abi32-static
+        - qemu-ppc64le-static
+        - qemu-ppc64-static
+        - qemu-ppc-static
+        - qemu-riscv32-static
+        - qemu-riscv64-static
+        - qemu-s390x-static
+        - qemu-sh4eb-static
+        - qemu-sh4-static
+        - qemu-sparc32plus-static
+        - qemu-sparc64-static
+        - qemu-sparc-static
+        - qemu-tilegx-static
+        - qemu-x86_64-static
+        - qemu-xtensaeb-static
+        - qemu-xtensa-static
+        - qemu-aarch64_be-static
+        - qemu-aarch64-static
+        - qemu-alpha-static
+        - qemu-armeb-static
+        - qemu-arm-static
+        - qemu-cris-static
+        - qemu-hppa-static
+        - qemu-i386-static
+
+    - name: Install apt pre-requisites
+      apt:
+        name:
+          - bison
+          - flex
+          - python3-pip
+          - libglib2.0-dev
+          - libpixman-1-dev
+          - libcairo2-dev
+          - libpango1.0-dev
+          # - libjpeg8-dev
+          - libgif-dev
+          - libfdt-dev
+          - libjack-jackd2-dev
+          - zlib1g-dev
+          - ninja-build
+          - git-email
+          - libaio-dev
+          - libbluetooth-dev
+          - libcapstone-dev
+          - libbrlapi-dev
+          - libbz2-dev
+          - libnfs-dev
+          - libiscsi-dev
+          - libcap-ng-dev
+          - libcurl4-gnutls-dev
+          - libgtk-3-dev
+          - libibverbs-dev
+          # - libjpeg8-dev
+          - libncurses5-dev
+          - libnuma-dev
+          - librbd-dev
+          - librdmacm-dev
+          - libsasl2-dev
+          - libsdl2-dev
+          - libseccomp-dev
+          - libsnappy-dev
+          - libssh-dev
+          - libvde-dev
+          - libvdeplug-dev
+          - libvte-2.91-dev
+          - libxen-dev
+          - liblzo2-dev
+          - libslirp-dev
+          - libusb-dev
+          - libusbredirparser-dev
+          - valgrind
+          - xfslibs-dev
+          # - libvirt-bin
+          # - libvirt-daemon-system
+          # - libvirt-clients
+          - bridge-utils
+        state: present
+      become: true
+
+    - name: Install virtualenv via pip
+      pip:
+        name: virtualenv
+        executable: pip3
+      environment:
+        PATH: /usr/bin:/usr/local/bin
+
+    - name: Download {{ app_name }} tarball
+      get_url:
+        url: https://download.qemu.org/{{ download_file_name }}
+        dest: /tmp/{{ download_file_name }}
+
+    - name: Get sha256 sum of script
+      stat:
+        path: /tmp/{{ download_file_name }}
+        checksum_algorithm: sha256
+        get_checksum: yes
+      register: tarball
+
+    - name: Verify sha256sum of tarball before execution.
+      fail:
+        msg: "Failure, file is not correct. Downloaded file sha256 sum is {{ tarball.stat.checksum }}"
+      when: tarball.stat.checksum != '37ce2ef5e500fb752f681117c68b45118303ea49a7e26bd54080ced54fab7def'
+
+    - name: Create {{ app_name }} process directory
+      file:
+        path: "{{ install_dir }}"
+        state: directory
+        owner: libvirt-qemu
+        group: libvirt-qemu
+      tags:
+        - create-dir
+      become: true
+
+    - name: Installing Ninja
+      include_tasks:
+        file: install_ninja.yml
+
+    - name: Extract {{ app_name }} tarball into {{ install_dir }}
+      unarchive:
+        src: /tmp/{{ download_file_name }}
+        dest: "{{ install_dir }}"
+        owner: libvirt-qemu
+        group: libvirt-qemu
+        remote_src: true
+      tags:
+        - create-dir
+      become: true
+
+    - name: configure a native debug
+      command: ./configure --target-list=x86_64-softmmu --enable-debug --enable-slirp --enable-spice --enable-jack
+      args:
+        chdir: "{{ install_dir }}/qemu-{{ app_version }}"
+      register: configure_output
+      become: true
+
+    - name: Debug
+      vars:
+        msg: |
+            Configure output:
+            {{ configure_output.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
+    - name: Build the default target
+      make:
+        chdir: "{{ install_dir }}/qemu-{{ app_version }}"
+        params:
+          NUM_THREADS: 12
+      # async: 3600
+      # poll: 0
+      register: qemu_build
+      become: true
+
+    - name: Debug
+      vars:
+        msg: |
+            Configure output:
+            {{ qemu_build.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
+    # - name: 'Check on build async task'
+    #   async_status:
+    #     jid: "{{ qemu_build.ansible_job_id }}"
+    #   register: job_result
+    #   until: job_result.finished
+    #   delay: 10
+    #   retries: 300
+
+
+    - name: Creates sets right permissions for qemu kvm
+      file:
+        state: file
+        path: "{{ install_dir }}/qemu-{{ app_version }}/build/{{ item }}"
+        owner: root
+        group: libvirt-qemu
+        mode: 0755
+      tags:
+        - create-dir
+      with_items:
+        - qemu-img
+        - qemu-system-x86_64
+        - qemu-edid
+        - qemu-io
+        - qemu-keymap
+        - qemu-nbd
+        - qemu-pr-helper
+        - qemu-bridge-helper
+      become: true
+
+    - name: Creates symlinks to /usr/bin
+      file:
+        state: link
+        follow: false
+        # force: yes
+        src: "{{ install_dir }}/qemu-{{ app_version }}/build/{{ item }}"
+        dest: /usr/bin/{{ item }}
+        owner: libvirt-qemu
+        group:  kvm
+        mode: 0550
+      tags:
+        - create-dir
+      with_items:
+        - qemu-img
+        - qemu-system-x86_64
+        - qemu-edid
+        - qemu-io
+        - qemu-keymap
+        - qemu-nbd
+        - qemu-pr-helper
+        - qemu-bridge-helper
+      become: true
+      ignore_errors: true
+
+    - name: The next command tells apt where to find the packages
+      blockinfile:
+        path: "/home/{{ ansible_user }}/.zshrc"
+        create: false
+        block: |
+          export PATH={{ install_dir }}/qemu-{{ app_version }}/build:$PATH
+
+    - name: Check if installed version is {{ app_version }}
+      shell: qemu-system-x86_64 --version | grep -oP '\d+\.\d+\.\d+'
+      register: qemu_kvm_version
+      failed_when: qemu_kvm_version.stdout != app_version
+      become: true
+

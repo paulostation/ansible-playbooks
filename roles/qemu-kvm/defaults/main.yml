@@ -1,0 +1,9 @@
+app_name: qemu-kvm
+download_file_name: qemu-8.1.1.tar.xz
+app_version: 8.1.1
+install_dir: /opt
+libvirtd_version: 9.10.0
+update_libvirtd: false
+update_virt_manager: false
+update_qemu_kvm: false
+verbose_output: false
