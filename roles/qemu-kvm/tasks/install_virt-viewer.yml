@@ -1,0 +1,94 @@
+- name: Checking if ninja is already installed
+  stat:
+    path: /usr/bin/virt-viewer
+  register: virt_viewer_bin
+
+- debug:
+    msg: "virt-viewer bin {{ virt_viewer_bin.stat.exists }}"
+
+- name: Install ninja
+  when: virt_viewer_bin.stat.exists | bool == false
+  block:
+    - name: Ensure dependencies are installed
+      apt:
+        name:
+#           - gir1.2-libvirt-glib-1.0
+#           - libvirt-clients
+#           - shared-mime-info
+#           # - libvirt-daemon
+#           - libvirt-daemon-config-network
+#           - libvirt-daemon-config-nwfilter
+#           - libvirt-daemon-driver-qemu
+#           - libvirt-daemon-system
+#           - libvirt-daemon-system-systemd
+#           - libvirt-glib-1.0-0
+#           - libglib2.0-dev
+#           - libvirt-glib-1.0-data
+#           - libgtk-3-dev 
+#           - libgdk-pixbuf2.0-dev
+#           - libvirt0
+#           - python3-libvirt
+          - virt-manager
+
+        state: present
+        update_cache: yes
+      become: true
+#     - name: Cloning virt-viewer git repo
+#       git:
+#         repo: 'https://gitlab.com/virt-viewer/virt-viewer.git'
+#         dest: /tmp/virt-viewer
+
+#     - name: configure using meson
+#       command: meson setup --reconfigure build
+#       args:
+#         chdir: /tmp/virt-viewer
+      
+
+#     - name: build using ninja
+#       command: ninja -C build
+#       args:
+#         chdir: /tmp/virt-viewer
+
+#     - name: build using ninja
+#       command: sudo ninja -C build install
+#       args:
+#         chdir: /tmp/virt-viewer
+#       become: true
+
+    # - name: Cloning virt-viewer git repo
+    #   git:
+    #     repo: 'https://gitlab.com/virt-viewer/virt-viewer.git'
+    #     dest: /tmp/virt-viewer
+
+    # - name: configure using meson
+    #   command: meson setup --reconfigure build
+    #   args:
+    #     chdir: /tmp/virt-viewer
+
+    # - name: build using ninja
+    #   command: ninja -C build
+    #   args:
+    #     chdir: /tmp/virt-viewer
+
+    # - name: build using ninja
+    #   command: sudo ninja -C build install
+    #   args:
+    #     chdir: /tmp/virt-viewer
+    #   become: true
+
+    - name: Cloning virt-viewer git repo
+      git:
+        repo: 'https://github.com/virt-manager/virt-manager.git'
+        dest: /tmp/virt-manager
+
+    # - name: Instal python deps
+    #   pip:
+    #     name:
+    #       - pycairo
+    #       - PyGObject
+
+    # - name: Install virt-manager
+    #   command: sudo ./setup.py install
+    #   args:
+    #     chdir: /tmp/virt-manager/virt-manager-4.1.0
+    #   become: true

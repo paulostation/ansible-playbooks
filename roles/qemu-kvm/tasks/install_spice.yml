@@ -1,0 +1,98 @@
+
+
+
+# - name: Checking if ninja is already installed
+#   stat:
+#     path: /usr/bin/ninja
+#   register: ninja_bin
+
+# - debug:
+#     msg: "ninja bin {{ ninja_bin.stat.exists }}"
+
+# 9996  sudo apt install libspice-server1
+#10010  sudo apt install libspice-protocol-dev libspice-server-dev\n
+#10154  sudo apt install gir1.2-spiceclientgtk-3.0
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - libgstreamer1.0-dev
+      - libgstreamer-plugins-base1.0-dev
+      - liblz4-dev
+      - libpixman-1-dev
+      - libssl-dev
+      - libjpeg-dev
+      - libsasl2-dev
+      - libspice-server1
+      - libspice-protocol-dev
+      - libspice-server-dev
+      - gir1.2-spiceclientgtk-3.0
+    state: present
+  become: true
+
+- name: Check if spice-server is installed
+  command: /usr/bin/pkg-config --exists --print-errors spice-server
+  register: pkg_check_result
+  ignore_errors: yes
+
+- name: Print status message based on the result
+  debug:
+    msg: "spice-server is {{ 'present' if pkg_check_result.rc == 0 else 'not present' }}"
+
+- name: Install spice
+  when: pkg_check_result.rc != 0
+  block:
+    - name: Cloning spice git repo
+      git:
+        repo: 'https://gitlab.freedesktop.org/spice/spice.git'
+        dest: /tmp/spice
+        force: yes
+
+    - name: configure
+      command: meson setup build
+      environment:
+        PKG_CONFIG: /usr/bin/pkg-config
+        PKG_CONFIG_PATH: "{{ lookup('env', 'PKG_CONFIG_PATH') }}:/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+        PATH: /usr/bin:/usr/local/bin
+      args:
+        chdir: /tmp/spice/
+      register: configure_output
+      ignore_errors: true
+
+    - name: Debug
+      vars:
+        msg: |
+            Configure output:
+            {{ configure_output.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
+    - name: Build using ninja
+      command: ninja -C build
+      args:
+        chdir: /tmp/spice/
+      register: build_output
+
+    - name: Debug
+      vars:
+        msg: |
+            Build output:
+            {{ build_output.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
+    - name: Install using ninja
+      command: ninja -C build install
+      args:
+        chdir: /tmp/spice/
+      become: true
+      register: install_output
+
+    - name: Debug
+      vars:
+        msg: |
+            Install output:
+            {{ install_output.stdout }}
+      debug:
+        msg: "{{ msg.split('\n') }}"
+
