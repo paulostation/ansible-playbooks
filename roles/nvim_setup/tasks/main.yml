@@ -1,0 +1,143 @@
+
+# roles/nvim_setup/tasks/main.yml
+
+- name: Install Neovim >= 0.10.0 from PPA
+  apt_repository:
+    repo: ppa:neovim-ppa/unstable
+    state: present
+  become: true
+
+- name: Install base packages including Neovim
+  apt:
+    name:
+      - neovim
+      - curl
+      - git
+      - python3
+      - python3-pip
+      - nodejs
+      - npm
+      - unzip
+      - pipx
+      - ripgrep
+      - fd-find
+      - fzf
+      - build-essential
+      - libreadline-dev
+      - libncurses5-dev
+      - libssl-dev
+      - zlib1g-dev
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Install lazygit from GitHub (binary release)
+  become: true
+  shell: |
+    set -e
+    LAZYGIT_VERSION=$(curl -s https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep tag_name | cut -d '"' -f 4)
+    curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_x86_64.tar.gz"
+    tar xf lazygit.tar.gz lazygit
+    install -m 755 lazygit /usr/local/bin/lazygit
+    rm -f lazygit lazygit.tar.gz
+  args:
+    creates: /usr/local/bin/lazygit
+
+- name: Symlink fd to fd-find if needed (Ubuntu)
+  file:
+    src: /usr/bin/fdfind
+    dest: /usr/local/bin/fd
+    state: link
+  when: ansible_facts['distribution'] == 'Ubuntu'
+  ignore_errors: true
+  become: true
+
+- name: Ensure pipx path is available in shell
+  shell: pipx ensurepath
+  args:
+    executable: /bin/bash
+
+- name: Install hererocks using pipx
+  shell: pipx install hererocks || true
+  args:
+    executable: /bin/bash
+
+#- name: Create LuaRocks environment with hererocks (with luarocks)
+#  shell: |
+#    set -euxo pipefail
+#    pipx run hererocks ~/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest --luarocks
+#  args:
+#    creates: ~/.local/share/nvim/lazy-rocks/hererocks/bin/activate
+
+- name: Create LuaRocks environment with hererocks
+  shell: |
+    pipx run hererocks ~/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest
+  args:
+    creates: ~/.local/share/nvim/lazy-rocks/hererocks/bin/luarocks
+
+- name: Ensure hererocks Lua binary exists
+  stat:
+    path: "{{ ansible_env.HOME }}/.local/share/nvim/lazy-rocks/hererocks/bin/lua"
+  register: lua_stat
+ #
+- name: Fail if Lua binary not found
+  fail:
+    msg: "Hererocks Lua binary not found at expected path."
+  when: not lua_stat.stat.exists
+
+- name: Ensure luarocks binary exists
+  stat:
+    path: "{{ ansible_env.HOME }}/.local/share/nvim/lazy-rocks/hererocks/bin/luarocks"
+  register: luarocks_stat
+
+- name: Fail if luarocks binary not found
+  fail:
+    msg: "Hererocks luarocks binary not found at expected path."
+  when: not luarocks_stat.stat.exists
+
+- name: Add hererocks to user PATH
+  lineinfile:
+    path: ~/.bashrc
+    line: 'export PATH="$HOME/.local/share/nvim/lazy-rocks/hererocks/bin:$PATH"'
+    create: yes
+    state: present
+    insertafter: EOF
+
+- name: Create Neovim config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  loop:
+    - "~/.config/nvim"
+
+- name: Clone Neovim config from Git
+  git:
+    repo: "{{ nvim_git_repo }}"
+    dest: "~/.config/nvim"
+    version: "HEAD"
+  when: nvim_config_source == "git"
+
+- name: Install Python Neovim support
+  pip:
+    name: pynvim
+    executable: pip3
+
+- name: Install global npm packages for Neovim
+  npm:
+    name: "{{ item }}"
+    global: yes
+  loop:
+    - neovim
+    - typescript
+    - typescript-language-server
+    - bash-language-server
+
+- name: Run PackerSync to install plugins
+  command: nvim --headless +PackerSync +qa
+  environment:
+    XDG_CONFIG_HOME: "~/.config"
+    XDG_DATA_HOME: "~/.local/share"
+  args:
+    creates: "~/.local/share/nvim/site/pack/packer"
+
