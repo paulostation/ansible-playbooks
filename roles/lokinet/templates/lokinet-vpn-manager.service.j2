@@ -1,0 +1,22 @@
+[Unit]
+Description=Lokinet VPN monitor
+After=lokinet.service
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/manage-lokinet-vpn.sh
+# TODO: encrypt at some point in time
+Environment="LOKI_EXIT_NODE={{ lokinet_exit_node_url }}"
+{% if lokinet_exit_node_token is defined %}
+Environment="LOKI_EXIT_TOKEN={{ lokinet_exit_node_token }}"
+{% endif %}
+SyslogIdentifier=lokinet-vpn-manager
+Restart=always
+RestartSec=3s
+StandardOutput=journal+console
+StartLimitBurst=4
+StartLimitAction=reboot
+StartLimitInterval=60
+
+[Install]
+WantedBy=multi-user.target

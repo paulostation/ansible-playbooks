@@ -1,0 +1,148 @@
+# Works with 
+# ansible-playbook --ask-become-pass -i hosts.yml -l local,target_hosts,localhost playbooks/lokinet-gw.yml --extra-vars=vm_group_suffix=41
+
+- name: Deploys VM based on cloud image
+  hosts: all
+  gather_facts: true
+  #serial: 1
+  become: false
+  strategy: linear  # Set the strategy to linear
+  vars:
+    vcpus: 2
+    uri: qemu:///session
+    ram_mb: 4096
+    cleanup: yes
+    net: default
+    vm_name: lokinet-gw-{{ vm_group_suffix }}
+    client_vm_name: lokinet-client-{{ vm_group_suffix }}
+    private_network_name: loki-network-{{ vm_group_suffix }}
+    ssh_pub_key: "/home/paulosf/.ssh/id_rsa.pub"
+
+  tasks:
+    - name: Provision gateway VM
+      include_role:
+        name: kvm_provision
+      vars:
+        vm_vcpus: "{{ vcpus }}"
+        vm_ram_mb: 2048
+        vm_net: default
+        bridge_interface_name: virbr{{ vm_group_suffix }}
+        cleanup_tmp: "{{ cleanup }}"
+        ssh_key: "{{ ssh_pub_key }}"
+
+    - name: Validate if the VM has an IP address
+      shell: virsh -c qemu:///system domifaddr --domain {{ vm_name }} | grep ipv4 | awk '{print $4}' | sed "s/\/24//" | grep -oP '\d+\.\d+\.\d+.\d+'
+      register: dhcp_addr
+      until: "dhcp_addr is not failed"
+      retries: 10
+      delay: 10
+
+    - debug:
+         msg: "{{ dhcp_addr }}"
+
+    - name: Add a new host to the inventory
+      add_host:
+        name: "{{ vm_name }}"
+        groups: target_hosts
+        ansible_host: "{{ dhcp_addr.stdout }}"  # Specify the IP address of the new host
+        ansible_user: ubuntu
+        primary_network_interface: ens3
+        secondary_network_interface: ens6
+        lokinet_is_an_upgrade: true
+        # lokinet_exit_node_url: exit.loki
+        lokinet_exit_node_url: x8ip9ajto9heyfbm5hrzh8eunwaqi8rrbxdhezf3gh9nyf88peqo.loki
+        lokinet_exit_node_token: f7c168ed3f
+      args: 
+        host_name: '{{ vm_name }}'
+        #dhcp_addr: '{{ dhcp_addr.stdout }}'
+    
+    - name: Set ansible_ssh_common_args to disable host key checking for dynamically added hosts
+      set_fact:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+    - name: Validate if ssh is up
+      shell: ssh -T ubuntu@{{ dhcp_addr.stdout }} exit
+      register: ssh_success
+      until: "ssh_success is not failed"
+      retries: 10
+      delay: 10
+
+
+- name: Wait for services to be up on the gateway VM
+  hosts: all
+  tasks:
+    - name: Wait for lokinet gateway to finish cloud init
+      when: ansible_connection != "local" # skip localhost
+      block:
+
+        - name: Gather all facts of cloud init
+          community.general.cloud_init_data_facts:
+          register: result
+
+        - ansible.builtin.debug:
+            var: result
+
+        - name: Wait for cloud init to finish
+          community.general.cloud_init_data_facts:
+            filter: status
+          register: res
+          until: "res.cloud_init_data_facts.status.v1.stage is defined and not res.cloud_init_data_facts.status.v1.stage"
+          retries: 50
+          delay: 5
+
+- import_playbook: install_lokinet.yml
+  vars:
+    target_host: lokinet-gw-{{ vm_group_suffix }}
+
+- name: Allow traffic to normal network for the client VM to run cloud-init 
+  hosts: all
+  tasks:  
+
+    - name: Allow traffic to normal network for the client VM to run cloud-init 
+      when: ansible_connection != "local" # skip localhost
+      become: true
+      command: iptables -t nat -I POSTROUTING -o {{ primary_network_interface }} -j MASQUERADE
+
+
+- import_playbook: lokinet-client.yml
+  vars:
+    private_network_name: loki-network-{{ vm_group_suffix }}
+    vm_name: lokinet-client-{{ vm_group_suffix }}    
+
+- name: Wait for lokinet client to finish cloud init setup
+  hosts: all
+  tasks:
+
+
+    - name: Wait for lokinet gateway to finish cloud init
+      when: ansible_connection != "local" # skip localhost
+      block:
+
+        - expect:
+            command: "virsh console {{ guest }}"
+            responses:
+              'Escape character is': ''
+              'root>': 
+                - "\u001d"
+          register: expect_response
+          ignore_errors: true
+        - debug:
+            msg: "Expect failed with rc={{ expect_response.rc }}"
+
+
+#   when: expect_response.failed
+#         - name: Gather all facts of cloud init
+#           community.general.cloud_init_data_facts:
+#           register: result
+
+#         - ansible.builtin.debug:
+#             var: result
+
+#         - name: Wait for cloud init to finish
+#           community.general.cloud_init_data_facts:
+#             filter: status
+#           register: res
+#           until: "res.cloud_init_data_facts.status.v1.stage is defined and not res.cloud_init_data_facts.status.v1.stage"
+#           retries: 50
+#           delay: 5
+

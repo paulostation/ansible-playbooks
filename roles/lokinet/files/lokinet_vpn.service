@@ -1,0 +1,16 @@
+[Unit]
+Description=LokiNET VPN
+Wants=lokinet.service
+After=lokinet.service
+
+[Service]
+User=_lokinet
+Type=notify
+WatchdogSec=30s
+SyslogIdentifier=lokinetvpn
+ExecStart=lokinet-vpn --exit euroexit.loki --up
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

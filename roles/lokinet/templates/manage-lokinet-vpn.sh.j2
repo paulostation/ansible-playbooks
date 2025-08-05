@@ -1,0 +1,125 @@
+#!/bin/bash
+set -e
+
+# Initialize variables
+
+ping_count=0
+ping_failures=0
+ping_total=0
+
+# Read the value of LOKINET_SERVICE_NAME or set a default value
+LOKINET_SERVICE_NAME="${LOKINET_SERVICE_NAME:-lokinet.service}"
+
+echo "LOKINET_SERVICE_NAME is: $LOKINET_SERVICE_NAME"
+
+systemd-notify --ready --status="LokinetVPN monitor started…"
+
+MAX_FAIL_COUNT=3
+MAX_PING_TIME=100
+PING_BATCH_SIZE=120
+
+fail_count=0
+
+while true; do
+ping_result=$(ping -c 1 8.8.8.8 | awk -F'[=]|[ ]' '/time=/ {print $10}')
+
+if [ -n "$ping_result" ]; then
+    lokinet_status=$(lokinet-vpn --status)
+
+    # echo "lokinet status: $lokinet_status"
+    # echo "fail count: $fail_count"
+
+    if [[ $lokinet_status == *"no exits"* ]] || (( $(bc <<< "$ping_result < $MAX_PING_TIME") )); then
+        echo "Ping time is under 100ms, lokinet is not being used: $ping_result ms"
+        fail_count=$((fail_count + 1))
+    else
+
+        fail_count=0
+        ping_total=$((ping_total + ping_result))
+        ping_count=$((ping_count + 1))
+
+        if ((ping_count == PING_BATCH_SIZE)); then
+            avg_ping=$(bc <<< "scale=2; $ping_total / $PING_BATCH_SIZE")
+            echo "Average ping for last $PING_BATCH_SIZE pings: $avg_ping ms"
+            ping_total=0
+            ping_count=0
+        fi
+    fi
+
+else
+    echo "Ping failed"
+    fail_count=$((fail_count + 1))
+fi
+
+if ((fail_count >= MAX_FAIL_COUNT)); then
+
+    echo "Restarting $LOKINET_SERVICE_NAME"
+    # netplan apply --debug
+    systemctl restart $LOKINET_SERVICE_NAME
+
+    echo "$LOKINET_SERVICE_NAME restarted"
+
+    echo "Waiting for lokinet to reconnect..."
+
+    lokinet_ready=false
+
+    watch_tries=0
+
+    while ! $lokinet_ready; do
+
+        echo "Waiting for lokinet to reconnect..."
+
+        lokinet_status=$(systemctl show $LOKINET_SERVICE_NAME --property=StatusText)
+        echo "$lokinet_status"
+
+        # Check if the variable contains the desired string
+        if [[ $lokinet_status == *"Low Build Success Rate"* ]]; then
+
+            lokinet_ready=false
+
+        else
+
+            lokinet_ready=true
+            echo "Lokinet is ready"
+
+        fi
+
+        sleep 10
+        watch_tries=$((watch_tries + 1))
+
+        if ((watch_tries >= 10 )); then
+            echo "Max retries reached, restarting lokinet daemon..."
+            systemctl restart $LOKINET_SERVICE_NAME
+            watch_tries=0
+        fi
+    done
+
+    echo "Spinning up lokinet-vpn..."
+
+    if [ -n "$LOKI_EXIT_NODE" ]; then
+        if [ -n "$LOKI_EXIT_TOKEN" ]; then
+            lokinet-vpn --exit "$LOKI_EXIT_NODE" --token "$LOKI_EXIT_TOKEN" --up
+            # Notify systemd that the service is ready
+            systemd-notify --ready --status="LokinetVPN started"
+        else
+            lokinet-vpn --exit "$LOKI_EXIT_NODE" --up
+            # Notify systemd that the service is ready
+            systemd-notify --ready --status="LokinetVPN started"
+        fi
+    else
+        echo "LOKI_EXIT_NODE is not defined. Cannot start VPN."
+        # Notify systemd of failure with an error message
+        systemd-notify --status="LokinetVPN failed to start: LOKI_EXIT_NODE is not defined" --pid=$$
+        exit 1
+    fi
+
+    lokinet-vpn --status
+
+    echo "LokinetVPN activated"
+
+    fail_count=0
+fi
+
+sleep 1
+
+done

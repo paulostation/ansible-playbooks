@@ -1,0 +1,85 @@
+*filter
+
+
+# Some local processes need to hear from other ones.
+-A INPUT -i lo -j ACCEPT
+
+# -A INPUT -m limit --limit 5/min -i eth0 -j LOG --log-prefix "iptables testing rule in: " --log-level 7
+# -A FORWARD -m limit --limit 5/min -i eth0 -j LOG --log-prefix "iptables testing rule fwd: " --log-level 7
+# -A OUTPUT -m limit --limit 5/min -j LOG --log-prefix "iptables testing rule output: " --log-level 7
+
+# Allows SSH connections
+# The --dport number is the same as in /etc/ssh/sshd_config
+-A INPUT -p tcp -m state --state NEW --dport 22 -j ACCEPT
+
+# If you are running a server on port N, and have enabled forwarding in your VPN account, you must allow inbound traffic on the VPN. You may also want to limit access to a particular IP address (a.b.c.d). There can be multiple rules, one for each permitted port and source address.
+# -A INPUT -i tun0 -s a.b.c.d –dport 2232 -j ACCEPT
+
+# You may need to allow traffic from local DHCP servers. If using Wi-Fi, use “wlan0” instead of “eth0”. This isn’t needed if your router provides persistent leases.
+-A INPUT -i {{ primary_network_interface }} -s 255.255.255.255 -j ACCEPT
+
+# Then you allow related/established traffic, and drop everything else, without acknowledgement to peers.
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# -A INPUT --sport 22000 --dport 22000 -j ACCEPT
+
+-A INPUT -i lokitun0 -p icmp --icmp-type 3/3 -j ACCEPT
+-A INPUT -i lokitun0 -p icmp --icmp-type 4/4 -j ACCEPT
+
+# -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+
+
+# Some local processes need to talk to other ones.
+-A OUTPUT -o lo -j ACCEPT
+# For lokinet DNS
+-A OUTPUT -p udp --dport 53 -j ACCEPT
+
+
+# DHCP stuff
+-A INPUT -i {{ primary_network_interface }} -p udp --dport 67 -j ACCEPT
+-A OUTPUT -o {{ primary_network_interface }} -p udp --dport 67 -j ACCEPT
+
+# allow lokinet traffic only
+-A OUTPUT -m owner --uid _lokinet -o {{ primary_network_interface }} -j ACCEPT
+
+# You need a rule to allow outbound traffic through the VPN tunnel.
+-A OUTPUT -o lokitun0 -j ACCEPT
+-A INPUT -i lokitun0 -j ACCEPT
+
+# DNS stuff
+#-A OUTPUT -p udp -s 127.0.0.1 --sport 53 -d 127.3.2.1 --dport 5354 -j ACCEPT
+-A OUTPUT -p udp --dport 53 -j ACCEPT
+-A OUTPUT -p udp --sport 53 -j ACCEPT
+
+# You may want rule(s) to allow LAN access. There can be multiple rules, one for each LAN that you use. If also using Wi-Fi, add another rule, with “-o wlan0”, instead of “-o eth0”.
+# -A OUTPUT -o eth0 -d x.y.z.0/24 -j ACCEPT
+
+-A OUTPUT -o lokitun0 -p icmp --icmp-type 3/3 -j ACCEPT
+-A OUTPUT -o lokitun0 -p icmp --icmp-type 4/4 -j ACCEPT
+
+# Allow outgoing traffic to local DHCP servers. If using Wi-Fi, use “wlan0” instead of “eth0”. This isn’t needed if your router provides persistent leases.
+# -A OUTPUT -o enp1s0 -d 255.255.255.255 -j ACCEPT
+
+# -A OUTPUT -o enp0s3 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# Then you allow related/established traffic, and drop everything else, without acknowledgement to peers.
+-A OUTPUT -o lokitun0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# Allow SSH
+-A OUTPUT -p tcp --sport 22 -j ACCEPT
+
+# Syncthing stuff
+-A OUTPUT -p tcp --dport 22000 -j ACCEPT
+
+
+# log iptables denied calls (access via 'dmesg' command)
+-A FORWARD -m limit --limit 60/min -j LOG --log-prefix "iptables forward denied: " --log-level 7
+-A INPUT -m limit --limit 60/min -j LOG --log-prefix "iptables input denied: " --log-level 7
+-A OUTPUT -m limit --limit 60/min -j LOG --log-prefix "iptables output denied: " --log-level 7
+
+-A INPUT -j DROP
+# Your device isn’t a router, so don’t allow forwarding. In any case, you’d also need to allow that using sysctl.
+-A FORWARD -j DROP
+-A OUTPUT -j DROP
+
+COMMIT

@@ -1,0 +1,13 @@
+[Unit]
+Description=Lokinet Monitor Service
+After=network.target
+
+[Service]
+# WatchdogSec=0s
+ExecStartPre=/usr/bin/python3 -m pip install Flask requests
+ExecStart=/usr/bin/python3 /usr/bin/python_oneshot_health_endpoint.py
+Restart=always
+RestartSec=60s
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,67 @@
+---
+- name: Copy lokinet-vpn monitor bash script
+  copy:
+    src: manage-lokinet-vpn.sh
+    dest: /usr/bin/manage-lokinet-vpn.sh
+    mode: 0755
+
+- name: Generate systemd unit file from template
+  template:
+    src: lokinet-vpn-manager.service.j2
+    dest: /etc/systemd/system/lokinet-vpn-manager.service
+    mode: 0644
+
+- name: Reload service lokinet-vpn, in all cases
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable service lokinet monitor and ensure it is not masked
+  systemd:
+    name: lokinet-vpn-manager.service
+    enabled: yes
+    masked: no
+  tags:
+    - systemd
+
+# - name: Make sure the service unit is running
+#   systemd:
+#     state: restarted
+#     daemon_reload: yes
+#     name: lokinet-vpn-manager.service
+#   tags:
+#     - systemd
+
+- name: Copy lokinet-vpn monitor bash script
+  copy:
+    src: python_oneshot_health_endpoint.py
+    dest: /usr/bin/python_oneshot_health_endpoint.py
+    mode: 0755
+
+- name: Generate systemd unit file from template
+  copy:
+    src: oneshot-health-endpoint.service
+    dest: /etc/systemd/system/oneshot-health-endpoint.service
+    mode: 0644
+
+- name: Reload service oneshot-health-endpoint.service, in all cases
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable service oneshot-health-endpoint.service monitor and ensure it is not masked
+  systemd:
+    name: oneshot-health-endpoint.service
+    enabled: yes
+    masked: no
+  tags:
+    - systemd
+
+- name: Make sure the service unit is running
+  systemd:
+    state: restarted
+    name: oneshot-health-endpoint.service
+  tags:
+    - systemd
+  ignore_errors: true # fails the first time because apt has not installed pip yet
+
+- name: Apply sysctl configs
+  command: sysctl -p
