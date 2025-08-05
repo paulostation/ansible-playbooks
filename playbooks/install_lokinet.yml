@@ -1,0 +1,23 @@
+---
+- name: Playbook to install lokinet vpn
+  hosts: "{{ target_host }}"
+  gather_facts: true
+  tasks:
+
+    #- debug: var=hostvars
+    - debug: var=group_names
+    - debug: var=play_hosts
+    - debug: var=host_name
+    - debug: var=test_fact
+
+
+    - name: Set ansible_ssh_common_args to disable host key checking for dynamically added hosts
+      set_fact:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+  roles:
+
+   - role: lokinet
+     become: true
+     tags:
+       - lokinet

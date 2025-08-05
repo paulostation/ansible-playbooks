@@ -1,0 +1,46 @@
+- name: Deploys VM based on cloud image
+  hosts: localhost
+  gather_facts: true
+  strategy: linear  # Set the strategy to linear
+  become: false
+  vars:
+    vcpus: 2
+    ram_mb: 4096
+    cleanup: yes
+    # vm_name: "{{ vm_name }}"
+    net: default
+    ssh_pub_key: "/home/paulosf/.ssh/id_rsa.pub"
+
+  tasks:
+
+    - name: Provision client VM
+      include_role:
+        name: kvm_provision
+      vars:
+        reset_pool: false
+        vm_vcpus: "{{ vcpus }}"
+        vm_ram_mb: 4096
+        cleanup_tmp: "{{ cleanup }}"
+        ssh_key: "{{ ssh_pub_key }}"
+        install_desktop: true
+        private_network_only: true
+
+    - name: Validate if the VM has an IP address
+      shell: virsh -c qemu:///system domifaddr --domain {{ vm_name }} | grep ipv4 | awk '{print $4}' | sed "s/\/24//" | grep -oP '\d+\.\d+\.\d+.\d+'
+      register: dhcp_addr
+      until: "dhcp_addr is not failed"
+      retries: 10
+      delay: 10
+
+    - name: Add a new host to the inventory
+      add_host:
+        name: "{{ vm_name }}"
+        groups: target_hosts
+        ansible_host: "{{ dhcp_addr.stdout }}"  # Specify the IP address of the new host
+        ansible_user: ubuntu
+        primary_network_interface: ens3
+        
+      args: 
+        host_name: '{{ vm_name }}'
+        #dhcp_addr: '{{ dhcp_addr.stdout }}'
+    

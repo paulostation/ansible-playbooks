@@ -1,0 +1,153 @@
+---
+# - name: Add lokinet APT key
+#   apt_key:
+#     url: https://deb.imaginary.stream/public.gpg
+#     state: present
+#   tags:
+#     - apt
+
+# - name: Hostname distribution
+#   debug: msg="{{ansible_distribution_release}}"
+
+# - name: The next command tells apt where to find the packages
+#   ansible.builtin.blockinfile:
+#     path: /etc/apt/sources.list.d/imaginary.stream.list
+#     create: true
+#     block: |
+#       deb https://deb.imaginary.stream {{ ansible_distribution_release }} main
+
+# - name: Install apt dependencies
+#   apt:
+#     name:
+#       - lokinet
+#       - lokinet-bin
+#       - iptables-persistent
+#     state: present
+#     update_cache: yes
+
+- name: Copy iptables ruleset
+  template:
+    src: standalone/iptables.rules.j2  # This is the path to your Jinja2 template
+    dest: /etc/iptables/rules.v4  # Specify the destination path for the generated XML
+    mode: 0644
+  tags:
+    - iptables
+
+
+# - name: Copy iptables ruleset
+#   copy:
+#     src: standalone/iptables.rules
+#     dest: /etc/iptables/rules.v4
+#     mode: 0644
+#   tags:
+#     - iptables
+
+- name: Disable resolved service
+  systemd:
+    name: systemd-resolved.service
+    enabled: no
+    state: stopped
+  tags:
+    - dns
+
+- name: Remove existing resolv.conf stuff
+  file:
+    path: /etc/resolv.conf
+    state: absent
+
+- name: Create temp resolv.conf file
+  become: true
+  shell: echo nameserver 1.1.1.1 | sudo tee /etc/resolv.conf
+  tags:
+    - dns
+
+- name: Copy dnsmasq config file
+  copy:
+    src: standalone/dnsmasq.conf
+    dest: /etc/dnsmasq.conf
+    mode: 0755
+  tags:
+    - dns
+
+# sudo ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf
+
+- name: Install dnsmasq
+  apt:
+    name:
+      - dnsmasq
+    state: present
+  tags:
+    - dns
+
+- name: Make sure the DNS service unit is running
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: dnsmasq.service
+  tags:
+    - dns
+
+- name: Copy final resolv.conf file
+  copy:
+    src: standalone/resolv.conf
+    dest: /etc/resolv.conf
+    mode: 0755
+  tags:
+    - dns
+
+- name: Apply iptables rules
+  become: true
+  shell: iptables-restore < /etc/iptables/rules.v4
+
+
+# - name: Checking if rc.local is already present
+#   stat:
+#     path: /etc/rc.local
+#   register: rc_local_file
+#   tags:
+#     - iptables
+
+# - name: Insert statement to load iptables rules on
+#   become: true
+#   ansible.builtin.blockinfile:
+#     insertbefore: exit 0
+#     path: /etc/rc.local
+#     block: |
+#       iptables-restore < /etc/iptables.rules
+#   tags:
+#     - iptables
+#   when: rc_local_file.stat.exists | bool == true
+
+# - name: Copy rc.local file
+#   copy:
+#     src: rc.local
+#     dest: /etc/rc.local
+#     mode: 0644
+#   when: rc_local_file.stat.exists | bool == false
+#   tags:
+#     - iptables
+
+# - name: Copy rc.local file
+#   copy:
+#     src: rc-local.service
+#     dest: /etc/systemd/system/
+#     mode: 0644
+#   when: rc_local_file.stat.exists | bool == false
+#   tags:
+#     - iptables
+
+- name: Copy lokinet.ini config file
+  copy:
+    src: standalone/lokinet.ini
+    dest: /var/lib/lokinet/lokinet.ini
+    mode: 0755
+
+- name: Copy lokinet-vpn daemon unit file
+  copy:
+    src: lokinet_vpn.service
+    dest: /etc/systemd/system/
+    mode: 0644
+
+- name: Reload service lokinet-vpn, in all cases
+  ansible.builtin.systemd:
+    daemon_reload: true
