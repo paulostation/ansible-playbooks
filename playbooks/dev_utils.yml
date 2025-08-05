@@ -7,6 +7,12 @@
       become: true
       tags:
         - dev
+
+    - role: syncthing
+      become: true
+      tags:
+        - syncthing
+        - infra
     - role: indicator-sysmonitor
       become: true
       tags:
