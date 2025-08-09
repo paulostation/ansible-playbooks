@@ -132,6 +132,7 @@
     - typescript
     - typescript-language-server
     - bash-language-server
+  become: true
 
 - name: Run PackerSync to install plugins
   command: nvim --headless +PackerSync +qa
