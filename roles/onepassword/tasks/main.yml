@@ -1,0 +1,78 @@
+---
+- name: Ensure required tools are present
+  become: true
+  ansible.builtin.package:
+    name:
+      - curl
+      - gpg
+    state: present
+
+- name: Create directory for APT keyring
+  become: true
+  ansible.builtin.file:
+    path: "{{ onepassword_apt_keyring_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Download 1Password ASCII-armored key (to temp)
+  become: true
+  ansible.builtin.get_url:
+    url: "{{ onepassword_key_url }}"
+    dest: "/tmp/1password.asc"
+    mode: "0644"
+  register: onepassword_key_download
+
+- name: Convert APT key to dearmored keyring
+  become: true
+  ansible.builtin.command:
+    cmd: "gpg --dearmor -o {{ onepassword_apt_keyring_path }} /tmp/1password.asc"
+    creates: "{{ onepassword_apt_keyring_path }}"
+  when: onepassword_key_download is succeeded
+
+- name: Add 1Password apt repository (sources.list.d file)
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ onepassword_apt_list_path }}"
+    mode: "0644"
+    content: |
+      deb [arch={{ onepassword_arch }} signed-by={{ onepassword_apt_keyring_path }}] {{ onepassword_repo }} stable main
+
+- name: Create debsig policy directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ onepassword_debsig_policy_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Install debsig-verify policy file
+  become: true
+  ansible.builtin.get_url:
+    url: "{{ onepassword_debsig_policy_url }}"
+    dest: "{{ onepassword_debsig_policy_path }}"
+    mode: "0644"
+
+- name: Create debsig keyring directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ onepassword_debsig_keyring_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Convert debsig key to gpg keyring
+  become: true
+  ansible.builtin.command:
+    cmd: "gpg --dearmor -o {{ onepassword_debsig_keyring_path }} /tmp/1password.asc"
+    creates: "{{ onepassword_debsig_keyring_path }}"
+
+- name: Update apt cache (optional)
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+  when: onepassword_update_cache
+
+- name: Install 1Password
+  become: true
+  ansible.builtin.apt:
+    name: "{{ onepassword_pkg_name }}"
+    state: present
+    update_cache: false

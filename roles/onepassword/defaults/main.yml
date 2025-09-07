@@ -1,0 +1,25 @@
+---
+# Change to "arm64" if you need it in the future; 1Password mainly ships amd64 for Debian/Ubuntu.
+onepassword_arch: "amd64"
+
+# Do not change unless 1Password updates their key/repo layout.
+onepassword_repo: "https://downloads.1password.com/linux/debian/{{ onepassword_arch }}"
+onepassword_key_url: "https://downloads.1password.com/linux/keys/1password.asc"
+onepassword_debsig_policy_url: "https://downloads.1password.com/linux/debian/debsig/1password.pol"
+
+# Paths per upstream instructions
+onepassword_apt_keyring_path: "/usr/share/keyrings/1password-archive-keyring.gpg"
+onepassword_apt_list_path: "/etc/apt/sources.list.d/1password.list"
+
+# debsig verification policy
+onepassword_debsig_vendor: "AC2D62742012EA22"
+onepassword_debsig_policy_dir: "/etc/debsig/policies/{{ onepassword_debsig_vendor }}"
+onepassword_debsig_policy_path: "{{ onepassword_debsig_policy_dir }}/1password.pol"
+onepassword_debsig_keyring_dir: "/usr/share/debsig/keyrings/{{ onepassword_debsig_vendor }}"
+onepassword_debsig_keyring_path: "{{ onepassword_debsig_keyring_dir }}/debsig.gpg"
+
+# Package name
+onepassword_pkg_name: "1password"
+
+# Whether to update apt cache right before install
+onepassword_update_cache: true
