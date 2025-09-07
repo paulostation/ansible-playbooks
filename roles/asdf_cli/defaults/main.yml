@@ -1,0 +1,38 @@
+---
+# Which user owns the asdf installation (home must exist)
+asdf_user: "{{ ansible_user | default('ubuntu') }}"
+asdf_group: "{{ asdf_user }}"
+
+# Which shell does the user use? 'zsh' or 'bash'
+asdf_shell: "zsh"
+
+# asdf version to install (a git tag). Use "v0.14.0" or similar. "latest" checks out HEAD of main.
+asdf_version: "v0.14.0"
+
+# Where to install asdf
+asdf_dir: "/home/{{ asdf_user }}/.asdf"
+
+# Plugins to install + versions to set globally
+# Tip: Versions should match what the plugin expects.
+# jq uses plain semver like "1.7.1"
+# yq (mikefarah/yq) typically uses semver like "4.44.1" (no leading 'v').
+asdf_plugins:
+  - name: jq
+    version: "1.7.1"
+  - name: yq
+    version: "4.44.1"
+
+# Extra build/runtime deps often needed by plugins
+asdf_prereqs:
+  - git
+  - curl
+  - tar
+  - gzip
+  - ca-certificates
+  - build-essential
+  - libssl-dev
+  - libreadline-dev
+  - zlib1g-dev
+
+# Update apt cache before installing prereqs
+asdf_update_cache: true
