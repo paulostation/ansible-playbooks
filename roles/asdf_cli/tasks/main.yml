@@ -1,0 +1,141 @@
+---
+- name: Ensure apt cache is updated
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+  when: asdf_update_cache
+
+- name: Install prerequisites
+  become: true
+  ansible.builtin.package:
+    name: "{{ asdf_prereqs }}"
+    state: present
+
+- name: Ensure asdf parent directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ asdf_dir | dirname }}"
+    state: directory
+    owner: "{{ asdf_user }}"
+    group: "{{ asdf_group }}"
+    mode: "0755"
+
+- name: Clone asdf (if not present)
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.git:
+    repo: "https://github.com/asdf-vm/asdf.git"
+    dest: "{{ asdf_dir }}"
+    version: "{{ asdf_version }}"
+    update: false
+
+- name: Checkout requested asdf version (idempotent)
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.command:
+    cmd: "git checkout {{ asdf_version }}"
+    chdir: "{{ asdf_dir }}"
+  changed_when: false
+
+# Shell initialization
+- name: Add asdf init to .zshrc (if shell is zsh)
+  when: asdf_shell == "zsh"
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.lineinfile:
+    path: "/home/{{ asdf_user }}/.zshrc"
+    create: true
+    line: |
+      # asdf
+      . "{{ asdf_dir }}/asdf.sh"
+      . "{{ asdf_dir }}/completions/asdf.zsh"
+    insertafter: EOF
+  register: zshrc_added
+
+- name: Add asdf init to .bashrc (if shell is bash)
+  when: asdf_shell == "bash"
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.lineinfile:
+    path: "/home/{{ asdf_user }}/.bashrc"
+    create: true
+    line: |
+      # asdf
+      . "{{ asdf_dir }}/asdf.sh"
+    insertafter: EOF
+  register: bashrc_added
+
+# Remove (or keep) the previous .zshrc/.bashrc "source" usage for runtime.
+# Keep the RC edits so your interactive shell loads asdf; but for Ansible
+# commands, directly source asdf.sh and set PATH/ASDF_DIR.
+
+- name: Ensure asdf plugins are added
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    . "{{ asdf_dir }}/asdf.sh"
+    if ! asdf plugin list | grep -qx "{{ item.name }}"; then
+      asdf plugin add "{{ item.name }}"
+    fi
+  args:
+    executable: /bin/bash
+  environment:
+    ASDF_DIR: "{{ asdf_dir }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+  loop: "{{ asdf_plugins }}"
+  changed_when: false
+
+- name: Install requested versions
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    . "{{ asdf_dir }}/asdf.sh"
+    asdf install "{{ item.name }}" "{{ item.version }}"
+  args:
+    executable: /bin/bash
+  environment:
+    ASDF_DIR: "{{ asdf_dir }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+  loop: "{{ asdf_plugins }}"
+  register: install_results
+  # Mark changed only if the install path is created during this run
+  changed_when: false
+
+- name: Set global versions
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    . "{{ asdf_dir }}/asdf.sh"
+    asdf global "{{ item.name }}" "{{ item.version }}"
+    asdf reshim "{{ item.name }}"
+  args:
+    executable: /bin/bash
+  environment:
+    ASDF_DIR: "{{ asdf_dir }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+  loop: "{{ asdf_plugins }}"
+
+- name: Show final asdf tool versions (debug)
+  become: true
+  become_user: "{{ asdf_user }}"
+  ansible.builtin.shell: |
+    . "{{ asdf_dir }}/asdf.sh"
+    asdf --version
+    echo "---"
+    asdf plugin list --urls
+    echo "---"
+    asdf current
+  args:
+    executable: /bin/bash
+  environment:
+    ASDF_DIR: "{{ asdf_dir }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+  register: asdf_summary
+  changed_when: false
+
+- name: Print asdf summary
+  ansible.builtin.debug:
+    var: asdf_summary.stdout

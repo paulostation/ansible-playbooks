@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: your_name
+  description: Install asdf and manage CLI tools (jq, yq) with global versions.
+  license: MIT
+  min_ansible_version: "2.12"
+  platforms:
+    - name: Ubuntu
+      versions: ["focal", "jammy", "noble"]
+    - name: Debian
+      versions: ["bullseye", "bookworm"]
+dependencies: []
