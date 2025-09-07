@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: your_name
+  description: Install and configure 1Password apt repo and package on Debian/Ubuntu.
+  license: MIT
+  min_ansible_version: "2.12"
+  platforms:
+    - name: Debian
+      versions: ["bullseye", "bookworm"]
+    - name: Ubuntu
+      versions: ["focal", "jammy", "noble"]
+dependencies: []
