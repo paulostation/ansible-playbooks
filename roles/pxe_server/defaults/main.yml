@@ -1,0 +1,66 @@
+# PXE Server Configuration
+pxe_interface: eth0
+pxe_server_ip: "{{ ansible_host }}"
+pxe_network: 192.168.15.0
+
+# TFTP settings
+tftp_root: /srv/tftp
+
+# HTTP server for live boot images
+http_root: /var/www/html
+
+# Boot images to download
+pxe_boot_images:
+  debian:
+    enabled: true
+    label: "Debian 12 Netinstall"
+    kernel_url: "http://deb.debian.org/debian/dists/bookworm/main/installer-amd64/current/images/netboot/debian-installer/amd64/linux"
+    initrd_url: "http://deb.debian.org/debian/dists/bookworm/main/installer-amd64/current/images/netboot/debian-installer/amd64/initrd.gz"
+    kernel: "debian/linux"
+    initrd: "debian/initrd.gz"
+    append: ""
+
+  ubuntu2204:
+    enabled: true
+    label: "Ubuntu 22.04 LTS Live Server"
+    iso_url: "https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso"
+    kernel: "ubuntu2204/vmlinuz"
+    initrd: "ubuntu2204/initrd"
+    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2204/ubuntu-22.04-live-server-amd64.iso"
+
+  ubuntu2404:
+    enabled: true
+    label: "Ubuntu 24.04 LTS Live Server"
+    iso_url: "https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-live-server-amd64.iso"
+    kernel: "ubuntu2404/vmlinuz"
+    initrd: "ubuntu2404/initrd"
+    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2404/ubuntu-24.04-live-server-amd64.iso"
+
+  centos:
+    enabled: true
+    label: "CentOS Stream 9 Netinstall"
+    kernel_url: "https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/images/pxeboot/vmlinuz"
+    initrd_url: "https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/images/pxeboot/initrd.img"
+    kernel: "centos/vmlinuz"
+    initrd: "centos/initrd.img"
+    append: "inst.repo=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/"
+
+  systemrescue:
+    enabled: true
+    label: "SystemRescue 11.03"
+    iso_url: "https://sourceforge.net/projects/systemrescuecd/files/sysresccd-x86/11.03/systemrescue-11.03-amd64.iso/download"
+    kernel: "systemrescue/vmlinuz"
+    initrd: "systemrescue/sysresccd.img"
+    append: "archisobasedir=sysresccd archiso_http_srv=http://{{ pxe_server_ip }}/systemrescue/"
+
+  omarchy:
+    enabled: true
+    label: "Omarchy Linux 3.1.6"
+    iso_url: "https://iso.omarchy.org/omarchy-3.1.6.iso"
+    kernel: "omarchy/vmlinuz"
+    initrd: "omarchy/initramfs.img"
+    append: "archisobasedir=arch archiso_http_srv=http://{{ pxe_server_ip }}/omarchy/"
+
+# PXE menu settings
+pxe_menu_timeout: 300
+pxe_menu_default: local

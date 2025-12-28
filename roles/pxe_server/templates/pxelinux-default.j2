@@ -1,0 +1,31 @@
+DEFAULT vesamenu.c32
+PROMPT 0
+TIMEOUT {{ pxe_menu_timeout }}
+ONTIMEOUT {{ pxe_menu_default }}
+
+MENU TITLE PXE Boot Menu - {{ inventory_hostname }}
+MENU BACKGROUND #000000
+MENU COLOR border       37;40      #80ffffff #00000000 none
+MENU COLOR sel          7;37;40    #e0ffffff #20ffffff all
+MENU COLOR title        1;37;40    #c0ffffff #00000000 none
+MENU COLOR unsel        37;40      #90ffffff #00000000 none
+
+LABEL local
+    MENU LABEL Boot from local disk
+{% if pxe_menu_default == 'local' %}
+    MENU DEFAULT
+{% endif %}
+    LOCALBOOT 0
+
+{% for name, image in pxe_boot_images.items() %}
+{% if image.enabled | default(false) %}
+LABEL {{ name }}
+    MENU LABEL {{ image.label }}
+{% if pxe_menu_default == name %}
+    MENU DEFAULT
+{% endif %}
+    KERNEL {{ image.kernel }}
+    APPEND initrd={{ image.initrd }} {{ image.append }}
+
+{% endif %}
+{% endfor %}

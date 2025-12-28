@@ -1,0 +1,20 @@
+# PXE Boot Server Configuration (ProxyDHCP mode)
+# Managed by Ansible - do not edit manually
+
+# Listen on {{ pxe_interface }} only (wired network for PXE clients)
+interface={{ pxe_interface }}
+bind-interfaces
+
+# ProxyDHCP mode - don't assign IPs, just provide boot info
+dhcp-range={{ pxe_network }},proxy
+
+# PXE boot options
+dhcp-boot=pxelinux.0
+
+# Enable TFTP server
+enable-tftp
+tftp-root={{ tftp_root }}
+
+# Logging
+log-dhcp
+log-queries
