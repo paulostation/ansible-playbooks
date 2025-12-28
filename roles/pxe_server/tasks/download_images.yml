@@ -1,0 +1,77 @@
+---
+# Download PXE boot images
+
+# Handle images with direct kernel/initrd URLs (Debian, CentOS)
+- name: Download kernel (direct URL)
+  get_url:
+    url: "{{ item.value.kernel_url }}"
+    dest: "{{ tftp_root }}/{{ item.value.kernel }}"
+    mode: '0644'
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.kernel_url is defined
+
+- name: Download initrd (direct URL)
+  get_url:
+    url: "{{ item.value.initrd_url }}"
+    dest: "{{ tftp_root }}/{{ item.value.initrd }}"
+    mode: '0644'
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.initrd_url is defined
+
+# Handle ISO-based images (Ubuntu, SystemRescue, Omarchy)
+- name: Create HTTP directories for ISO-based images
+  file:
+    path: "{{ http_root }}/{{ item.key }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.iso_url is defined
+
+- name: Create TFTP directories for ISO-based images
+  file:
+    path: "{{ tftp_root }}/{{ item.key }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.iso_url is defined
+
+- name: Check if ISOs exist
+  stat:
+    path: "{{ http_root }}/{{ item.key }}/{{ item.value.iso_url | basename | regex_replace('/download$', '') }}"
+  register: iso_stats
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.iso_url is defined
+
+- name: Download ISOs
+  get_url:
+    url: "{{ item.item.value.iso_url }}"
+    dest: "{{ http_root }}/{{ item.item.key }}/{{ item.item.value.iso_url | basename | regex_replace('/download$', '') | default(item.item.key + '.iso') }}"
+    mode: '0644'
+    timeout: 1800
+  loop: "{{ iso_stats.results }}"
+  when:
+    - item.item.value.enabled | default(false)
+    - item.item.value.iso_url is defined
+    - not (item.stat.exists | default(false))
+  async: 3600
+  poll: 30
+
+# Extract boot files from ISOs
+- name: Mount and extract boot files from ISOs
+  include_tasks: extract_iso.yml
+  loop: "{{ pxe_boot_images | dict2items }}"
+  loop_control:
+    loop_var: boot_image
+  when:
+    - boot_image.value.enabled | default(false)
+    - boot_image.value.iso_url is defined

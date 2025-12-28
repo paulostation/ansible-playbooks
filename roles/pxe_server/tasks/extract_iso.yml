@@ -1,0 +1,66 @@
+---
+# Extract boot files from ISO
+
+- name: Set ISO filename
+  set_fact:
+    iso_filename: "{{ boot_image.value.iso_url | basename | regex_replace('/download$', '') }}"
+    iso_path: "{{ http_root }}/{{ boot_image.key }}"
+
+- name: Create mount point
+  file:
+    path: "/mnt/pxe_iso_{{ boot_image.key }}"
+    state: directory
+    mode: '0755'
+
+- name: Mount ISO
+  mount:
+    path: "/mnt/pxe_iso_{{ boot_image.key }}"
+    src: "{{ iso_path }}/{{ iso_filename }}"
+    fstype: iso9660
+    opts: loop,ro
+    state: mounted
+
+- name: Find kernel file in ISO
+  find:
+    paths: "/mnt/pxe_iso_{{ boot_image.key }}"
+    patterns:
+      - "vmlinuz*"
+      - "linux"
+    recurse: yes
+  register: kernel_files
+
+- name: Find initrd file in ISO
+  find:
+    paths: "/mnt/pxe_iso_{{ boot_image.key }}"
+    patterns:
+      - "initrd*"
+      - "initramfs*"
+      - "sysresccd.img"
+    recurse: yes
+  register: initrd_files
+
+- name: Copy kernel from ISO
+  copy:
+    src: "{{ kernel_files.files[0].path }}"
+    dest: "{{ tftp_root }}/{{ boot_image.value.kernel }}"
+    remote_src: yes
+    mode: '0644'
+  when: kernel_files.files | length > 0
+
+- name: Copy initrd from ISO
+  copy:
+    src: "{{ initrd_files.files[0].path }}"
+    dest: "{{ tftp_root }}/{{ boot_image.value.initrd }}"
+    remote_src: yes
+    mode: '0644'
+  when: initrd_files.files | length > 0
+
+- name: Unmount ISO
+  mount:
+    path: "/mnt/pxe_iso_{{ boot_image.key }}"
+    state: unmounted
+
+- name: Remove mount point
+  file:
+    path: "/mnt/pxe_iso_{{ boot_image.key }}"
+    state: absent
