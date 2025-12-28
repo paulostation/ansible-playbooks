@@ -32,3 +32,8 @@
       become: true
       tags:
         - libvirtd
+
+    - role: pxe_server
+      become: true
+      tags:
+        - pxe
