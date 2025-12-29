@@ -1,5 +1,5 @@
 # PXE Server Configuration
-pxe_interface: eth0
+pxe_interface: wlan0
 pxe_server_ip: "{{ ansible_host }}"
 pxe_network: 192.168.15.0
 
@@ -26,7 +26,7 @@ pxe_boot_images:
     iso_url: "https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso"
     kernel: "ubuntu2204/vmlinuz"
     initrd: "ubuntu2204/initrd"
-    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2204/ubuntu-22.04-live-server-amd64.iso"
+    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2204/ubuntu-22.04.5-live-server-amd64.iso"
 
   ubuntu2404:
     enabled: true
@@ -34,7 +34,7 @@ pxe_boot_images:
     iso_url: "https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-live-server-amd64.iso"
     kernel: "ubuntu2404/vmlinuz"
     initrd: "ubuntu2404/initrd"
-    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2404/ubuntu-24.04-live-server-amd64.iso"
+    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2404/ubuntu-24.04.1-live-server-amd64.iso"
 
   centos:
     enabled: true

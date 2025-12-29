@@ -8,8 +8,9 @@ bind-interfaces
 # ProxyDHCP mode - don't assign IPs, just provide boot info
 dhcp-range={{ pxe_network }},proxy
 
-# PXE boot options
-dhcp-boot=pxelinux.0
+# PXE boot options (using lpxelinux for HTTP support)
+pxe-service=x86PC,"PXE Boot Menu",lpxelinux
+dhcp-boot=lpxelinux.0,{{ pxe_server_ip }},{{ pxe_server_ip }}
 
 # Enable TFTP server
 enable-tftp
