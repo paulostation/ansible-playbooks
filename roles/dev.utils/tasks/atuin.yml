@@ -1,0 +1,106 @@
+---
+- name: Check if Atuin is already installed
+  stat:
+    path: "/home/{{ ansible_user }}/.atuin/bin/atuin"
+  register: atuin_binary
+
+- name: Download and install Atuin
+  become: false
+  shell: curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+  args:
+    creates: "/home/{{ ansible_user }}/.atuin/bin/atuin"
+  when: not atuin_binary.stat.exists
+
+- name: Ensure Atuin config directory exists
+  file:
+    path: "/home/{{ ansible_user }}/.config/atuin"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Deploy Atuin configuration
+  template:
+    src: atuin-config.toml.j2
+    dest: "/home/{{ ansible_user }}/.config/atuin/config.toml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Add Atuin shell integration to .zshrc
+  become: false
+  blockinfile:
+    path: "/home/{{ ansible_user }}/.zshrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Atuin"
+    block: |
+      # Atuin shell history
+      if [[ -f ~/.atuin/bin/env ]]; then
+        source ~/.atuin/bin/env
+        eval "$(atuin init zsh)"
+      fi
+    insertafter: EOF
+
+- name: Check if Atuin session exists
+  stat:
+    path: "/home/{{ ansible_user }}/.local/share/atuin/session"
+  register: atuin_session
+
+- name: Atuin login (if credentials provided and not logged in)
+  become: false
+  shell: |
+    export PATH="$HOME/.atuin/bin:$PATH"
+    atuin login -u "{{ atuin_username }}" -p "{{ atuin_password }}"
+  args:
+    creates: "/home/{{ ansible_user }}/.local/share/atuin/session"
+  when:
+    - atuin_sync_enabled | bool
+    - atuin_username is defined
+    - atuin_password is defined
+    - not atuin_session.stat.exists
+  register: atuin_login
+  ignore_errors: true
+  no_log: true
+
+- name: Atuin register (if login failed and credentials provided)
+  become: false
+  shell: |
+    export PATH="$HOME/.atuin/bin:$PATH"
+    atuin register -u "{{ atuin_username }}" -e "{{ atuin_email }}" -p "{{ atuin_password }}"
+  args:
+    creates: "/home/{{ ansible_user }}/.local/share/atuin/session"
+  when:
+    - atuin_sync_enabled | bool
+    - atuin_username is defined
+    - atuin_email is defined
+    - atuin_password is defined
+    - not atuin_session.stat.exists
+    - atuin_login is failed
+  no_log: true
+
+- name: Check if history was already imported
+  stat:
+    path: "/home/{{ ansible_user }}/.local/share/atuin/.history_imported"
+  register: atuin_history_imported
+
+- name: Import shell history to Atuin
+  become: false
+  shell: |
+    export PATH="$HOME/.atuin/bin:$PATH"
+    atuin import auto
+    touch ~/.local/share/atuin/.history_imported
+  args:
+    creates: "/home/{{ ansible_user }}/.local/share/atuin/.history_imported"
+  when:
+    - atuin_import_history | bool
+    - not atuin_history_imported.stat.exists
+
+- name: Initial Atuin sync
+  become: false
+  shell: |
+    export PATH="$HOME/.atuin/bin:$PATH"
+    atuin sync
+  when:
+    - atuin_sync_enabled | bool
+    - atuin_username is defined
+  changed_when: false
+  ignore_errors: true

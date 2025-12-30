@@ -40,3 +40,10 @@
 - name: Installing Oh My Zsh
   include_tasks:
     file: oh-my-zsh.yml
+
+- name: Installing Atuin shell history
+  include_tasks:
+    file: atuin.yml
+  when: atuin_enabled | default(true) | bool
+  tags:
+    - atuin
