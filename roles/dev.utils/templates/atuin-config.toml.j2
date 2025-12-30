@@ -1,0 +1,49 @@
+# Atuin configuration
+# Managed by Ansible
+
+## Date format used, either "us" or "uk"
+dialect = "us"
+
+## Enable/disable automatic sync
+auto_sync = {{ atuin_sync_enabled | lower }}
+
+## How often to sync, in human-readable format
+sync_frequency = "{{ atuin_sync_frequency }}"
+
+## Address of the sync server
+# sync_address = "https://api.atuin.sh"
+
+## Search mode: prefix, fulltext, fuzzy, or skim
+search_mode = "{{ atuin_search_mode }}"
+
+## Filter mode for search: global, host, session, directory
+filter_mode = "{{ atuin_filter_mode }}"
+
+## Style: auto, full, compact
+style = "{{ atuin_style }}"
+
+## Inline height for search UI (0 = fullscreen)
+inline_height = 0
+
+## Show preview of the selected command
+show_preview = true
+
+## Configure the maximum height of the preview area
+max_preview_height = 4
+
+## Show help text in the UI
+show_help = true
+
+## Exit on pressing Esc while search bar is empty
+exit_mode = "return-original"
+
+## Enable keymap that moves the cursor by word with Ctrl
+word_jump_mode = "emacs"
+
+## What to do when the user presses up/down arrow
+# (global, host, session, directory)
+history_filter = "global"
+
+## Configure what timezone to use when displaying timestamps
+# format: "local", "utc", or a timezone string like "America/New_York"
+# local_timezone = "local"
