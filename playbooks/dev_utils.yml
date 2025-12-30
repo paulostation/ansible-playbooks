@@ -8,6 +8,11 @@
       tags:
         - dev
 
+    - role: yazi
+      tags:
+        - dev
+        - yazi
+
     - role: syncthing
       become: true
       tags:
@@ -20,11 +25,11 @@
         - dev
         - vscode
 
-    - role: cloudalchemy.node_exporter
-      become: true
-      tags:
-        - infra
-        - metrics
+    # - role: cloudalchemy.node_exporter
+    #   become: true
+    #   tags:
+    #     - infra
+    #     - metrics
 
     - role: geerlingguy.docker
       become: true
