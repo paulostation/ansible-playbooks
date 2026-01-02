@@ -1,0 +1,96 @@
+# {{ ansible_managed }}
+# ArgoCD Helm Values with KSOPS Support
+
+global:
+  domain: {{ argocd_ingress_host }}
+
+server:
+  insecure: {{ argocd_server_insecure | lower }}
+
+{% if argocd_ingress_enabled %}
+  ingress:
+    enabled: true
+    ingressClassName: {{ argocd_ingress_class }}
+    annotations:
+{% if argocd_cert_manager_enabled %}
+      cert-manager.io/cluster-issuer: {{ argocd_cert_manager_issuer }}
+{% endif %}
+    hosts:
+      - {{ argocd_ingress_host }}
+{% if argocd_ingress_tls_enabled %}
+    tls:
+      - secretName: {{ argocd_ingress_tls_secret }}
+        hosts:
+          - {{ argocd_ingress_host }}
+{% endif %}
+{% endif %}
+
+# Repo server with KSOPS plugin
+repoServer:
+  # Environment variables for SOPS/AGE
+  env:
+    - name: SOPS_AGE_KEY_FILE
+      value: /sops/age/keys.txt
+    - name: XDG_CONFIG_HOME
+      value: /home/argocd
+
+  # Volume for KSOPS binary and AGE key
+  volumes:
+    - name: custom-tools
+      emptyDir: {}
+    - name: sops-age
+      secret:
+        secretName: sops-age-key
+
+  # Mount volumes
+  volumeMounts:
+    - name: custom-tools
+      mountPath: /usr/local/bin/ksops
+      subPath: ksops
+    - name: sops-age
+      mountPath: /sops/age
+
+  # Init container to install KSOPS
+  initContainers:
+    - name: install-ksops
+      image: viaductoss/ksops:{{ ksops_version }}
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -e
+          echo "Installing KSOPS {{ ksops_version }}..."
+          cp /usr/local/bin/ksops /custom-tools/ksops
+          chmod +x /custom-tools/ksops
+          echo "KSOPS installed successfully"
+      volumeMounts:
+        - name: custom-tools
+          mountPath: /custom-tools
+
+# ConfigMap settings
+configs:
+  cm:
+    # Enable kustomize exec plugins for KSOPS
+    kustomize.buildOptions: "{{ argocd_kustomize_build_options }}"
+
+    # URL for external access
+    url: https://{{ argocd_ingress_host }}
+
+  params:
+    # Server runs behind TLS-terminating proxy
+    server.insecure: {{ argocd_server_insecure | lower }}
+
+{% if argocd_repo_url and argocd_repo_ssh_key %}
+  # Repository credentials
+  repositories:
+    homelab-repo:
+      url: {{ argocd_repo_url }}
+      type: git
+      sshPrivateKey: |
+{{ argocd_repo_ssh_key | indent(8) }}
+{% endif %}
+
+  # Simple RBAC (local admin only for homelab)
+  rbac:
+    policy.csv: |
+      g, admin, role:admin
+    policy.default: role:readonly

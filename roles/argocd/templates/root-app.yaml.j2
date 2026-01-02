@@ -1,0 +1,35 @@
+# {{ ansible_managed }}
+# ArgoCD Root Application (App of Apps)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: {{ argocd_namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: {{ argocd_repo_url }}
+    path: {{ argocd_root_app_path }}
+    targetRevision: {{ argocd_root_app_target_revision }}
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ argocd_namespace }}
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

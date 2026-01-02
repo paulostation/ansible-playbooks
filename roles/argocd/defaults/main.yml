@@ -1,0 +1,43 @@
+---
+# ArgoCD Role - Defaults
+
+# Helm chart configuration
+argocd_chart_version: "5.51.6"
+argocd_chart_repo: "https://argoproj.github.io/argo-helm"
+argocd_namespace: "argocd"
+
+# KSOPS version for secrets decryption
+ksops_version: "v4.3.2"
+
+# ArgoCD server configuration
+argocd_server_insecure: true  # TLS terminated at ingress
+
+# Ingress configuration
+argocd_ingress_enabled: true
+argocd_ingress_class: "nginx"
+argocd_ingress_host: "argocd.prod.paulo.software.vpn"
+argocd_ingress_tls_enabled: true
+argocd_ingress_tls_secret: "argocd-tls"
+
+# Use step-ca for certificates (cert-manager with step issuer)
+argocd_cert_manager_enabled: true
+argocd_cert_manager_issuer: "step-issuer"
+argocd_cert_manager_issuer_kind: "ClusterIssuer"
+
+# RBAC - simple local admin (no OIDC for homelab)
+argocd_admin_password: ""  # Empty = auto-generated, retrieve with: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+# Repository configuration (for app-of-apps)
+argocd_repo_url: ""  # Set in host_vars
+argocd_repo_ssh_key: ""  # Set in host_vars (encrypted)
+
+# AGE private key for SOPS decryption
+argocd_age_private_key: ""  # Set in playbook from file
+
+# Root application
+argocd_root_app_enabled: true
+argocd_root_app_path: "apps"
+argocd_root_app_target_revision: "HEAD"
+
+# Kustomize build options for KSOPS
+argocd_kustomize_build_options: "--enable-alpha-plugins --enable-exec"

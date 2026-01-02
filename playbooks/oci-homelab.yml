@@ -1,6 +1,6 @@
 ---
 # OCI Homelab - Main Playbook
-# Configures the OCI VPS with WireGuard, DNS, and k3s
+# Configures the OCI VPS with WireGuard, DNS, k3s, and ArgoCD
 
 - name: Configure OCI Homelab VPS
   hosts: oci_homelab
@@ -17,6 +17,9 @@
       #   public_key: "{{ laptop_wireguard_pubkey }}"
       #   allowed_ips: "100.64.7.3/32"
 
+    # ArgoCD configuration
+    argocd_ingress_host: "argocd.prod.paulo.software.vpn"
+
   pre_tasks:
     - name: Wait for cloud-init to complete
       ansible.builtin.command: cloud-init status --wait
@@ -28,6 +31,12 @@
         update_cache: true
         cache_valid_time: 3600
 
+    - name: Load AGE private key for SOPS
+      ansible.builtin.set_fact:
+        argocd_age_private_key: "{{ lookup('file', playbook_dir + '/../secrets/age-key.txt') }}"
+      no_log: true
+      ignore_errors: true
+
   roles:
     - role: wireguard_server
       tags: [wireguard, vpn]
@@ -37,6 +46,9 @@
 
     - role: oci_k3s
       tags: [k3s, kubernetes]
+
+    - role: argocd
+      tags: [argocd, gitops]
 
   post_tasks:
     - name: Display connection info
@@ -59,8 +71,14 @@
             Kubeconfig: ~/.kube/oci-homelab.yaml
             API Server: https://{{ ansible_host }}:6443
 
+          ArgoCD:
+            URL: https://argocd.prod.paulo.software.vpn
+            Username: admin
+            Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
           Next steps:
             1. Configure WireGuard on your client
             2. Connect to VPN
-            3. Deploy ArgoCD: kubectl apply -k argocd/
+            3. Trust the internal CA
+            4. Access ArgoCD UI
           =====================================================
