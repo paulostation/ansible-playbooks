@@ -1,0 +1,6 @@
+# NFS Exports for PXE Boot (low-RAM mode)
+# Managed by Ansible - do not edit manually
+
+{% for name, image in pxe_boot_images.items() if image.enabled | default(false) and image.nfs_boot | default(false) %}
+{{ http_root }}/{{ name }} {{ pxe_network }}/24({{ nfs_export_options }})
+{% endfor %}

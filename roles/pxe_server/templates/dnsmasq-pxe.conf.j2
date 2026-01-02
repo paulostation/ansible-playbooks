@@ -1,20 +1,39 @@
 # PXE Boot Server Configuration (ProxyDHCP mode)
 # Managed by Ansible - do not edit manually
 
-# Listen on {{ pxe_interface }} only (wired network for PXE clients)
+# Listen on {{ pxe_interface }} only
 interface={{ pxe_interface }}
 bind-interfaces
 
 # ProxyDHCP mode - don't assign IPs, just provide boot info
 dhcp-range={{ pxe_network }},proxy
 
-# PXE boot options (using lpxelinux for HTTP support)
-pxe-service=x86PC,"PXE Boot Menu",lpxelinux
-dhcp-boot=lpxelinux.0,{{ pxe_server_ip }},{{ pxe_server_ip }}
-
 # Enable TFTP server
 enable-tftp
 tftp-root={{ tftp_root }}
+
+{% if uefi_enabled | default(false) %}
+# Architecture detection for BIOS vs UEFI
+# Option 93 = 0 means BIOS, 7/9 means UEFI x64
+dhcp-match=set:bios,option:client-arch,0
+dhcp-match=set:efi64,option:client-arch,7
+dhcp-match=set:efi64,option:client-arch,9
+
+# Serve appropriate bootloader based on architecture
+dhcp-boot=tag:bios,lpxelinux.0,{{ pxe_server_ip }},{{ pxe_server_ip }}
+dhcp-boot=tag:efi64,{{ grub_efi_dest }},{{ pxe_server_ip }},{{ pxe_server_ip }}
+
+# PXE service for BIOS clients
+pxe-service=x86PC,"PXE Boot Menu",lpxelinux
+pxe-service=X86-64_EFI,"PXE Boot Menu (UEFI)",{{ grub_efi_dest | replace('.efi', '') }}
+{% else %}
+# BIOS only mode
+pxe-service=x86PC,"PXE Boot Menu",lpxelinux
+dhcp-boot=lpxelinux.0,{{ pxe_server_ip }},{{ pxe_server_ip }}
+{% endif %}
+
+# TFTP server address
+dhcp-option=66,{{ pxe_server_ip }}
 
 # Logging
 log-dhcp

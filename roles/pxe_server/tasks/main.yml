@@ -11,6 +11,18 @@
     state: present
     update_cache: yes
 
+- name: Install GRUB EFI package
+  apt:
+    name: grub-efi-amd64-signed
+    state: present
+  when: uefi_enabled | default(false)
+
+- name: Install NFS server
+  apt:
+    name: nfs-kernel-server
+    state: present
+  when: nfs_enabled | default(false)
+
 - name: Create TFTP base directories
   file:
     path: "{{ item }}"
@@ -42,6 +54,28 @@
     - { src: "/usr/lib/syslinux/modules/bios/menu.c32", dest: "menu.c32" }
     - { src: "/usr/lib/syslinux/modules/bios/vesamenu.c32", dest: "vesamenu.c32" }
 
+- name: Copy GRUB EFI to TFTP root
+  copy:
+    src: "{{ grub_efi_source }}"
+    dest: "{{ tftp_root }}/{{ grub_efi_dest }}"
+    remote_src: yes
+    mode: '0644'
+  when: uefi_enabled | default(false)
+
+- name: Create GRUB config directory
+  file:
+    path: "{{ tftp_root }}/grub"
+    state: directory
+    mode: '0755'
+  when: uefi_enabled | default(false)
+
+- name: Configure GRUB menu
+  template:
+    src: grub.cfg.j2
+    dest: "{{ tftp_root }}/grub/grub.cfg"
+    mode: '0644'
+  when: uefi_enabled | default(false)
+
 - name: Configure dnsmasq for PXE
   template:
     src: dnsmasq-pxe.conf.j2
@@ -69,3 +103,18 @@
     name: nginx
     enabled: yes
     state: started
+
+- name: Configure NFS exports
+  template:
+    src: exports.j2
+    dest: /etc/exports
+    mode: '0644'
+  notify: restart nfs
+  when: nfs_enabled | default(false)
+
+- name: Enable and start NFS server
+  systemd:
+    name: nfs-kernel-server
+    enabled: yes
+    state: started
+  when: nfs_enabled | default(false)
