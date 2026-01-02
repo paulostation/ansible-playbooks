@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# Local DNS hosts for {{ dnsmasq_domain }}
+
+{% for host in dnsmasq_hosts %}
+{{ host.ip }}    {{ host.hostname }}.{{ dnsmasq_domain }} {{ host.hostname }}
+{% endfor %}

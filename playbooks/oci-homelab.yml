@@ -1,0 +1,66 @@
+---
+# OCI Homelab - Main Playbook
+# Configures the OCI VPS with WireGuard, DNS, and k3s
+
+- name: Configure OCI Homelab VPS
+  hosts: oci_homelab
+  become: true
+  gather_facts: true
+
+  vars:
+    # WireGuard peers - add your devices here
+    wireguard_peers:
+      - name: desktop
+        public_key: "{{ desktop_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.2/32"
+      # - name: laptop
+      #   public_key: "{{ laptop_wireguard_pubkey }}"
+      #   allowed_ips: "100.64.7.3/32"
+
+  pre_tasks:
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      ignore_errors: true
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - role: wireguard_server
+      tags: [wireguard, vpn]
+
+    - role: oci_dnsmasq
+      tags: [dns, dnsmasq]
+
+    - role: oci_k3s
+      tags: [k3s, kubernetes]
+
+  post_tasks:
+    - name: Display connection info
+      ansible.builtin.debug:
+        msg: |
+          =====================================================
+          OCI Homelab VPS configured successfully!
+          =====================================================
+
+          WireGuard:
+            Server IP: 100.64.7.1
+            Public Key: Check /etc/wireguard/publickey on server
+            Endpoint: {{ ansible_host }}:51820
+
+          DNS:
+            Domain: prod.paulo.software.vpn
+            Resolver: 100.64.7.1
+
+          k3s:
+            Kubeconfig: ~/.kube/oci-homelab.yaml
+            API Server: https://{{ ansible_host }}:6443
+
+          Next steps:
+            1. Configure WireGuard on your client
+            2. Connect to VPN
+            3. Deploy ArgoCD: kubectl apply -k argocd/
+          =====================================================

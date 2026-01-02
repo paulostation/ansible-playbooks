@@ -1,0 +1,46 @@
+---
+# OCI Dnsmasq Role - Defaults
+
+# DNS domain for internal resolution
+dnsmasq_domain: "prod.paulo.software.vpn"
+
+# Listen interfaces
+dnsmasq_listen_interfaces:
+  - wg0
+  - lo
+
+# Upstream DNS servers
+dnsmasq_upstream_dns:
+  - 1.1.1.1
+  - 8.8.8.8
+
+# Local DNS records
+# Format: { hostname: "name", ip: "x.x.x.x" }
+dnsmasq_hosts:
+  - hostname: "homelab"
+    ip: "100.64.7.1"
+  - hostname: "grafana"
+    ip: "100.64.7.1"
+  - hostname: "argocd"
+    ip: "100.64.7.1"
+  - hostname: "ca"
+    ip: "100.64.7.1"
+  - hostname: "victoriametrics"
+    ip: "100.64.7.1"
+  - hostname: "victorialogs"
+    ip: "100.64.7.1"
+  - hostname: "elasticsearch"
+    ip: "100.64.7.1"
+  - hostname: "syncthing"
+    ip: "100.64.7.1"
+  - hostname: "kopia"
+    ip: "100.64.7.1"
+
+# DHCP disabled (we use static IPs on WireGuard)
+dnsmasq_dhcp_enabled: false
+
+# Cache size
+dnsmasq_cache_size: 1000
+
+# Log queries for debugging
+dnsmasq_log_queries: false
