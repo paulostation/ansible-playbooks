@@ -11,10 +11,23 @@
     state: present
     update_cache: yes
 
-- name: Install GRUB EFI package
-  apt:
-    name: grub-efi-amd64-signed
-    state: present
+- name: Download GRUB EFI package from Debian
+  get_url:
+    url: "{{ grub_efi_deb_url }}"
+    dest: /tmp/grub-efi-amd64-signed.deb
+    mode: '0644'
+  when: uefi_enabled | default(false)
+
+- name: Extract GRUB EFI binary from deb
+  shell: |
+    cd /tmp
+    ar x grub-efi-amd64-signed.deb
+    tar -xf data.tar.xz
+    cp usr/lib/grub/x86_64-efi-signed/grubnetx64.efi.signed {{ tftp_root }}/{{ grub_efi_dest }}
+    rm -f grub-efi-amd64-signed.deb data.tar.xz control.tar.xz debian-binary
+    rm -rf usr
+  args:
+    creates: "{{ tftp_root }}/{{ grub_efi_dest }}"
   when: uefi_enabled | default(false)
 
 - name: Install NFS server
@@ -53,14 +66,6 @@
     - { src: "/usr/lib/syslinux/modules/bios/libutil.c32", dest: "libutil.c32" }
     - { src: "/usr/lib/syslinux/modules/bios/menu.c32", dest: "menu.c32" }
     - { src: "/usr/lib/syslinux/modules/bios/vesamenu.c32", dest: "vesamenu.c32" }
-
-- name: Copy GRUB EFI to TFTP root
-  copy:
-    src: "{{ grub_efi_source }}"
-    dest: "{{ tftp_root }}/{{ grub_efi_dest }}"
-    remote_src: yes
-    mode: '0644'
-  when: uefi_enabled | default(false)
 
 - name: Create GRUB config directory
   file:
