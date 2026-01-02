@@ -1,5 +1,5 @@
 ---
-# OCI k3s Role - Main Tasks
+# k3s Role - Main Tasks
 
 - name: Ensure data directory exists
   ansible.builtin.file:
@@ -79,7 +79,7 @@
   ansible.builtin.replace:
     path: "{{ k3s_kubeconfig_local_path }}"
     regexp: 'server: https://127.0.0.1:6443'
-    replace: 'server: https://{{ ansible_host }}:6443'
+    replace: 'server: https://{{ wireguard_client_ip | default(ansible_host) }}:6443'
   delegate_to: localhost
   become: false
 

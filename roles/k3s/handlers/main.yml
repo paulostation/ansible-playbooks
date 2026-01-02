@@ -1,5 +1,5 @@
 ---
-# OCI k3s Role - Handlers
+# k3s Role - Handlers
 
 - name: Restart k3s
   ansible.builtin.systemd:

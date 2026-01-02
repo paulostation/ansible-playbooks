@@ -1,5 +1,5 @@
 ---
-# OCI k3s Role - Defaults
+# k3s Role - Defaults
 
 # k3s version (empty = latest stable)
 k3s_version: ""
@@ -19,10 +19,10 @@ k3s_extra_args:
 k3s_secrets_encryption: true
 
 # Path to store kubeconfig locally
-k3s_kubeconfig_local_path: "~/.kube/oci-homelab.yaml"
+k3s_kubeconfig_local_path: "~/.kube/stremio-rpi.yaml"
 
-# k3s data directory (use block volume)
-k3s_data_dir: "/data/k3s"
+# k3s data directory
+k3s_data_dir: "/var/lib/rancher/k3s"
 
 # Cluster CIDR
 k3s_cluster_cidr: "10.42.0.0/16"
