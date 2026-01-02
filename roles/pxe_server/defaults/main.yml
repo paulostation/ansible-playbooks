@@ -11,7 +11,8 @@ http_root: /var/www/html
 
 # UEFI Support
 uefi_enabled: true
-grub_efi_deb_url: "https://ftp.debian.org/debian/pool/main/g/grub-efi-amd64-signed/grub-efi-amd64-signed_1%2B2.12%2B5_amd64.deb"
+grub_efi_deb_url: "http://ftp.us.debian.org/debian/pool/main/g/grub-efi-amd64-signed/grub-efi-amd64-signed_1+2.06+13+deb12u1_amd64.deb"
+grub_efi_deb_checksum: "sha256:009cf7628c0b6cf1f4472df8b9bf5db603028185db63670686d5b985c4f4bc9d"
 grub_efi_dest: grubnetx64.efi
 
 # NFS Support (for low-RAM boot)
