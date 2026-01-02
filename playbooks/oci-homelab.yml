@@ -1,6 +1,6 @@
 ---
 # OCI Homelab - Main Playbook
-# Configures the OCI VPS with WireGuard, DNS, k3s, and ArgoCD
+# Configures the OCI VPS as WireGuard VPN hub and DNS server
 
 - name: Configure OCI Homelab VPS
   hosts: oci_homelab
@@ -8,17 +8,14 @@
   gather_facts: true
 
   vars:
-    # WireGuard peers - add your devices here
+    # WireGuard peers
     wireguard_peers:
       - name: desktop
         public_key: "{{ desktop_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.3/32"
+      - name: rpi
+        public_key: "{{ rpi_wireguard_pubkey }}"
         allowed_ips: "100.64.7.2/32"
-      # - name: laptop
-      #   public_key: "{{ laptop_wireguard_pubkey }}"
-      #   allowed_ips: "100.64.7.3/32"
-
-    # ArgoCD configuration
-    argocd_ingress_host: "argocd.prod.paulo.software.vpn"
 
   pre_tasks:
     - name: Wait for cloud-init to complete
@@ -31,24 +28,12 @@
         update_cache: true
         cache_valid_time: 3600
 
-    - name: Load AGE private key for SOPS
-      ansible.builtin.set_fact:
-        argocd_age_private_key: "{{ lookup('file', playbook_dir + '/../secrets/age-key.txt') }}"
-      no_log: true
-      ignore_errors: true
-
   roles:
     - role: wireguard_server
       tags: [wireguard, vpn]
 
     - role: oci_dnsmasq
       tags: [dns, dnsmasq]
-
-    - role: oci_k3s
-      tags: [k3s, kubernetes]
-
-    - role: argocd
-      tags: [argocd, gitops]
 
   post_tasks:
     - name: Display connection info
@@ -58,27 +43,16 @@
           OCI Homelab VPS configured successfully!
           =====================================================
 
-          WireGuard:
+          WireGuard Hub:
             Server IP: 100.64.7.1
-            Public Key: Check /etc/wireguard/publickey on server
             Endpoint: {{ ansible_host }}:51820
 
           DNS:
             Domain: prod.paulo.software.vpn
             Resolver: 100.64.7.1
 
-          k3s:
-            Kubeconfig: ~/.kube/oci-homelab.yaml
-            API Server: https://{{ ansible_host }}:6443
+          Peers to configure:
+            - Desktop: 100.64.7.3
+            - Pi 5: 100.64.7.2
 
-          ArgoCD:
-            URL: https://argocd.prod.paulo.software.vpn
-            Username: admin
-            Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-
-          Next steps:
-            1. Configure WireGuard on your client
-            2. Connect to VPN
-            3. Trust the internal CA
-            4. Access ArgoCD UI
           =====================================================
