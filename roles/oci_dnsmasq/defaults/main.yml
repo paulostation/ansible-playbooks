@@ -15,26 +15,32 @@ dnsmasq_upstream_dns:
   - 8.8.8.8
 
 # Local DNS records
-# Format: { hostname: "name", ip: "x.x.x.x" }
 dnsmasq_hosts:
+  # OCI node services
+  - hostname: "oci"
+    ip: "100.64.7.1"
   - hostname: "homelab"
     ip: "100.64.7.1"
-  - hostname: "grafana"
-    ip: "100.64.7.1"
+
+  # Pi 5 node services (k3s workloads)
+  - hostname: "rpi"
+    ip: "100.64.7.2"
   - hostname: "argocd"
-    ip: "100.64.7.1"
+    ip: "100.64.7.2"
+  - hostname: "grafana"
+    ip: "100.64.7.2"
   - hostname: "ca"
-    ip: "100.64.7.1"
+    ip: "100.64.7.2"
   - hostname: "victoriametrics"
-    ip: "100.64.7.1"
+    ip: "100.64.7.2"
   - hostname: "victorialogs"
-    ip: "100.64.7.1"
+    ip: "100.64.7.2"
   - hostname: "elasticsearch"
-    ip: "100.64.7.1"
+    ip: "100.64.7.2"
   - hostname: "syncthing"
-    ip: "100.64.7.1"
+    ip: "100.64.7.2"
   - hostname: "kopia"
-    ip: "100.64.7.1"
+    ip: "100.64.7.2"
 
 # DHCP disabled (we use static IPs on WireGuard)
 dnsmasq_dhcp_enabled: false
