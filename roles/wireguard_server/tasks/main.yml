@@ -144,6 +144,45 @@
   when: wireguard_dns_enabled
   notify: Save iptables
 
+# FORWARD chain rules for VPN peer-to-peer traffic
+# These must come BEFORE any REJECT rules in the FORWARD chain
+
+- name: Check for REJECT rule in FORWARD chain
+  ansible.builtin.shell: |
+    iptables -L FORWARD --line-numbers -n | grep -n "REJECT" | head -1 | cut -d: -f1
+  register: forward_reject_line
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: Set insert position for FORWARD rules
+  ansible.builtin.set_fact:
+    forward_insert_pos: "{{ forward_reject_line.stdout | default('') | trim }}"
+
+- name: Allow forwarding from WireGuard interface (insert before REJECT)
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: "{{ wireguard_interface }}"
+    jump: ACCEPT
+    comment: "WireGuard forward from {{ wireguard_interface }}"
+    action: insert
+    rule_num: "{{ forward_insert_pos | int if forward_insert_pos else omit }}"
+  become: true
+  when: wireguard_ip_forward
+  notify: Save iptables
+
+- name: Allow forwarding to WireGuard interface (insert before REJECT)
+  ansible.builtin.iptables:
+    chain: FORWARD
+    out_interface: "{{ wireguard_interface }}"
+    jump: ACCEPT
+    comment: "WireGuard forward to {{ wireguard_interface }}"
+    action: insert
+    rule_num: "{{ (forward_insert_pos | int + 1) if forward_insert_pos else omit }}"
+  become: true
+  when: wireguard_ip_forward
+  notify: Save iptables
+
 - name: Enable and start WireGuard
   ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"

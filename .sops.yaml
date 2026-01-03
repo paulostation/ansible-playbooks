@@ -1,0 +1,15 @@
+# SOPS configuration using age encryption
+creation_rules:
+  # Encrypt all yaml files in secrets directory
+  - path_regex: secrets/.*\.ya?ml$
+    age: age1hz38nr8hn2qtasd5kd0e5r3fxuxv098mx4y9c58789kzaxsr0gnsmxsg9r
+
+  # Encrypt sensitive values in hosts.yml
+  - path_regex: hosts\.ya?ml$
+    age: age1hz38nr8hn2qtasd5kd0e5r3fxuxv098mx4y9c58789kzaxsr0gnsmxsg9r
+    encrypted_regex: "^(.*password.*|.*secret.*|.*token.*|.*key.*)$"
+
+# Usage:
+# - Encrypt: sops -e -i secrets/file.yml
+# - Decrypt for editing: sops secrets/file.yml
+# - View decrypted: sops -d secrets/file.yml
