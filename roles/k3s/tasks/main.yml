@@ -10,6 +10,26 @@
     group: root
   become: true
 
+- name: Ensure k3s config directory exists
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Configure k3s with secrets encryption
+  ansible.builtin.copy:
+    content: |
+      secrets-encryption: {{ k3s_secrets_encryption | lower }}
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  when: k3s_secrets_encryption
+
 - name: Check if k3s is already installed
   ansible.builtin.stat:
     path: /usr/local/bin/k3s
@@ -58,15 +78,18 @@
   register: node_ready
   until: node_ready.rc == 0
 
-- name: Configure secrets encryption
+- name: Check secrets encryption status
+  ansible.builtin.command: k3s secrets-encrypt status
+  become: true
+  register: secrets_status
+  changed_when: false
+  failed_when: false
   when: k3s_secrets_encryption
-  block:
-    - name: Enable secrets encryption
-      ansible.builtin.command: k3s secrets-encrypt enable
-      become: true
-      register: secrets_encrypt
-      changed_when: "'already enabled' not in secrets_encrypt.stderr"
-      failed_when: false
+
+- name: Display encryption status
+  ansible.builtin.debug:
+    msg: "{{ secrets_status.stdout_lines | default(['Encryption status unknown']) }}"
+  when: k3s_secrets_encryption
 
 - name: Fetch kubeconfig
   ansible.builtin.fetch:
