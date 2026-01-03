@@ -6,3 +6,7 @@
     name: "wg-quick@{{ wireguard_interface }}"
     state: restarted
   become: true
+
+- name: Save iptables
+  ansible.builtin.command: netfilter-persistent save
+  become: true

@@ -102,6 +102,48 @@
     - net.ipv6.conf.default.disable_ipv6
   become: true
 
+- name: Install iptables-persistent
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+  become: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: Allow WireGuard UDP port
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: "{{ wireguard_port }}"
+    jump: ACCEPT
+    comment: "WireGuard VPN"
+  become: true
+  notify: Save iptables
+
+- name: Allow DNS from VPN network (UDP)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    source: "{{ wireguard_network }}"
+    destination_port: 53
+    jump: ACCEPT
+    comment: "DNS from VPN"
+  become: true
+  when: wireguard_dns_enabled
+  notify: Save iptables
+
+- name: Allow DNS from VPN network (TCP)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    source: "{{ wireguard_network }}"
+    destination_port: 53
+    jump: ACCEPT
+    comment: "DNS from VPN"
+  become: true
+  when: wireguard_dns_enabled
+  notify: Save iptables
+
 - name: Enable and start WireGuard
   ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"
