@@ -80,13 +80,26 @@ configs:
     server.insecure: {{ argocd_server_insecure | lower }}
 
 {% if argocd_repo_url and argocd_repo_ssh_key %}
-  # Repository credentials
+  # Repository credentials (legacy single-repo mode)
   repositories:
     homelab-repo:
       url: {{ argocd_repo_url }}
       type: git
       sshPrivateKey: |
 {{ argocd_repo_ssh_key | indent(8) }}
+{% elif argocd_helm_repo_url and argocd_values_repo_url and argocd_repos_ssh_key %}
+  # Repository credentials (multi-repo GitOps mode)
+  repositories:
+    helm-templates:
+      url: {{ argocd_helm_repo_url }}
+      type: git
+      sshPrivateKey: |
+{{ argocd_repos_ssh_key | indent(8) }}
+    prod-values:
+      url: {{ argocd_values_repo_url }}
+      type: git
+      sshPrivateKey: |
+{{ argocd_repos_ssh_key | indent(8) }}
 {% endif %}
 
   # Simple RBAC (local admin only for homelab)

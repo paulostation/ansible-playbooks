@@ -3,17 +3,36 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root
+  name: homelab-apps
   namespace: {{ argocd_namespace }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
 
+{% if argocd_helm_repo_url and argocd_values_repo_url %}
+  # Multi-source pattern: templates + values repos
+  sources:
+    - repoURL: {{ argocd_values_repo_url }}
+      targetRevision: {{ argocd_root_app_target_revision }}
+      ref: values
+    - repoURL: {{ argocd_helm_repo_url }}
+      targetRevision: {{ argocd_root_app_target_revision }}
+      path: {{ argocd_root_app_path }}
+      helm:
+        valueFiles:
+          - $values/values.yaml
+{% if argocd_values_path_prefix %}
+          - $values/{{ argocd_values_path_prefix.split('/')[0] }}/values.yaml
+          - $values/{{ argocd_values_path_prefix }}/values.yaml
+{% endif %}
+{% else %}
+  # Single-source pattern (legacy)
   source:
     repoURL: {{ argocd_repo_url }}
     path: {{ argocd_root_app_path }}
     targetRevision: {{ argocd_root_app_target_revision }}
+{% endif %}
 
   destination:
     server: https://kubernetes.default.svc
