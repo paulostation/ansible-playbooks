@@ -49,7 +49,8 @@
   become: false
   shell: |
     export PATH="$HOME/.atuin/bin:$PATH"
-    atuin login -u "{{ atuin_username }}" -p "{{ atuin_password }}"
+    atuin login -u "{{ atuin_username }}" -p "{{ atuin_password }}"{% if atuin_key is defined %} -k "{{ atuin_key }}"{% endif %}
+
   args:
     creates: "/home/{{ ansible_user }}/.local/share/atuin/session"
   when:
