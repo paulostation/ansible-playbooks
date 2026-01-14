@@ -31,6 +31,12 @@
         - dev
         - chezmoi
 
+    - role: asdf_cli
+      become: true
+      tags:
+        - dev
+        - asdf
+
     # - role: cloudalchemy.node_exporter
     #   become: true
     #   tags:
