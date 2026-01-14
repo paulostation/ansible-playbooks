@@ -1,0 +1,70 @@
+---
+# Install chezmoi binary
+
+- name: Check if chezmoi is already installed
+  stat:
+    path: "{{ chezmoi_install_dir }}/chezmoi"
+  register: chezmoi_binary
+
+# Arch Linux - use pacman (chezmoi is in community repo)
+- name: Install chezmoi (Arch Linux)
+  become: true
+  community.general.pacman:
+    name: chezmoi
+    state: present
+  when:
+    - ansible_os_family == 'Archlinux'
+    - not chezmoi_binary.stat.exists
+
+# Debian/Ubuntu - download binary from GitHub
+- name: Get latest chezmoi release version (Debian/Ubuntu)
+  uri:
+    url: https://api.github.com/repos/twpayne/chezmoi/releases/latest
+    return_content: yes
+  register: chezmoi_release
+  when:
+    - ansible_os_family == 'Debian'
+    - not chezmoi_binary.stat.exists
+
+- name: Set chezmoi version fact
+  set_fact:
+    chezmoi_version: "{{ chezmoi_release.json.tag_name }}"
+  when:
+    - ansible_os_family == 'Debian'
+    - not chezmoi_binary.stat.exists
+
+- name: Download chezmoi binary (Debian/Ubuntu)
+  become: true
+  get_url:
+    url: "https://github.com/twpayne/chezmoi/releases/download/{{ chezmoi_version }}/chezmoi_{{ chezmoi_version | regex_replace('^v', '') }}_linux_amd64.tar.gz"
+    dest: /tmp/chezmoi.tar.gz
+  when:
+    - ansible_os_family == 'Debian'
+    - not chezmoi_binary.stat.exists
+
+- name: Extract chezmoi binary (Debian/Ubuntu)
+  become: true
+  unarchive:
+    src: /tmp/chezmoi.tar.gz
+    dest: "{{ chezmoi_install_dir }}"
+    remote_src: yes
+    extra_opts:
+      - chezmoi
+  when:
+    - ansible_os_family == 'Debian'
+    - not chezmoi_binary.stat.exists
+
+- name: Cleanup chezmoi tarball (Debian/Ubuntu)
+  file:
+    path: /tmp/chezmoi.tar.gz
+    state: absent
+  when: ansible_os_family == 'Debian'
+
+- name: Verify chezmoi installation
+  command: chezmoi --version
+  register: chezmoi_version_check
+  changed_when: false
+
+- name: Display chezmoi version
+  debug:
+    msg: "Installed chezmoi: {{ chezmoi_version_check.stdout }}"

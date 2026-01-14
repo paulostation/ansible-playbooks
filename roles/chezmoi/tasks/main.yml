@@ -1,0 +1,9 @@
+---
+# Chezmoi dotfile manager role
+
+- name: Install chezmoi
+  include_tasks: install.yml
+
+- name: Initialize and apply chezmoi
+  include_tasks: init.yml
+  when: chezmoi_auto_init | bool
