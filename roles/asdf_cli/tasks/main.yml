@@ -15,11 +15,19 @@
     - asdf_update_cache
     - ansible_os_family == 'Archlinux'
 
-- name: Install prerequisites
+- name: Install prerequisites (Debian/Ubuntu)
   become: true
-  ansible.builtin.package:
-    name: "{{ asdf_prereqs }}"
+  ansible.builtin.apt:
+    name: "{{ asdf_prereqs_debian }}"
     state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install prerequisites (Arch Linux)
+  become: true
+  community.general.pacman:
+    name: "{{ asdf_prereqs_arch }}"
+    state: present
+  when: ansible_os_family == 'Archlinux'
 
 - name: Ensure asdf parent directory exists
   become: true
