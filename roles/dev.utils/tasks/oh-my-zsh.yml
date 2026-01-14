@@ -1,7 +1,14 @@
-- name: Install ZSH
+- name: Install ZSH (Debian/Ubuntu)
   apt:
     name: zsh
     state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install ZSH (Arch Linux)
+  community.general.pacman:
+    name: zsh
+    state: present
+  when: ansible_os_family == 'Archlinux'
 
 - name: Download Oh My Zsh install script
   get_url:

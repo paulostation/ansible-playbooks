@@ -1,13 +1,15 @@
 
 # roles/nvim_setup/tasks/main.yml
 
-- name: Install Neovim >= 0.10.0 from PPA
+# Ubuntu/Debian installation
+- name: Install Neovim >= 0.10.0 from PPA (Debian/Ubuntu)
   apt_repository:
     repo: ppa:neovim-ppa/unstable
     state: present
   become: true
+  when: ansible_os_family == 'Debian'
 
-- name: Install base packages including Neovim
+- name: Install base packages including Neovim (Debian/Ubuntu)
   apt:
     name:
       - neovim
@@ -30,6 +32,33 @@
     state: present
     update_cache: yes
   become: true
+  when: ansible_os_family == 'Debian'
+
+# Arch Linux installation
+- name: Install base packages including Neovim (Arch Linux)
+  community.general.pacman:
+    name:
+      - neovim
+      - curl
+      - git
+      - python
+      - python-pip
+      - nodejs
+      - npm
+      - unzip
+      - python-pipx
+      - ripgrep
+      - fd
+      - fzf
+      - base-devel
+      - readline
+      - ncurses
+      - openssl
+      - zlib
+    state: present
+    update_cache: yes
+  become: true
+  when: ansible_os_family == 'Archlinux'
 
 - name: Install lazygit from GitHub (binary release)
   become: true
