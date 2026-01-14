@@ -63,6 +63,11 @@
               https://github.com/marlonrichert/zsh-snap.git ~/Repos/znap
       source ~/Repos/znap/znap.zsh  # Start Znap
 
+      # Ensure zsh-autocomplete is cloned (znap sometimes fails silently)
+      [[ -d ~/Repos/marlonrichert/zsh-autocomplete/.git ]] ||
+          git clone --depth 1 -- \
+              https://github.com/marlonrichert/zsh-autocomplete.git ~/Repos/marlonrichert/zsh-autocomplete
+
       znap source marlonrichert/zsh-autocomplete
 
 - name: Set correct permissions for plugins
