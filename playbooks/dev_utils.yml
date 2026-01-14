@@ -25,6 +25,12 @@
         - dev
         - vscode
 
+    - role: chezmoi
+      become: true
+      tags:
+        - dev
+        - chezmoi
+
     # - role: cloudalchemy.node_exporter
     #   become: true
     #   tags:

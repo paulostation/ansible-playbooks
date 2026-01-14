@@ -1,0 +1,100 @@
+---
+# Initialize chezmoi and apply dotfiles
+
+- name: Check if chezmoi is already initialized
+  stat:
+    path: "/home/{{ chezmoi_user }}/.local/share/chezmoi/.git"
+  register: chezmoi_initialized
+
+- name: Ensure chezmoi config directory exists
+  file:
+    path: "/home/{{ chezmoi_user }}/.config/chezmoi"
+    state: directory
+    owner: "{{ chezmoi_user }}"
+    group: "{{ chezmoi_group }}"
+    mode: "0755"
+
+# Configure age encryption if enabled
+- name: Check if age key file exists
+  stat:
+    path: "{{ chezmoi_age_key_file }}"
+  register: age_key_file
+  when: chezmoi_age_enabled | bool
+
+- name: Get age public key from key file
+  shell: "grep -o 'age1[a-z0-9]*' {{ chezmoi_age_key_file }} | head -1"
+  register: age_public_key
+  changed_when: false
+  when:
+    - chezmoi_age_enabled | bool
+    - age_key_file.stat.exists | default(false)
+    - chezmoi_age_recipient == ""
+
+- name: Set age recipient from key file
+  set_fact:
+    chezmoi_age_recipient: "{{ age_public_key.stdout }}"
+  when:
+    - chezmoi_age_enabled | bool
+    - age_public_key.stdout is defined
+    - age_public_key.stdout != ""
+    - chezmoi_age_recipient == ""
+
+- name: Deploy chezmoi configuration
+  template:
+    src: chezmoi.toml.j2
+    dest: "/home/{{ chezmoi_user }}/.config/chezmoi/chezmoi.toml"
+    owner: "{{ chezmoi_user }}"
+    group: "{{ chezmoi_group }}"
+    mode: "0644"
+  when: chezmoi_age_enabled | bool and chezmoi_age_recipient != ""
+
+# Determine repo source
+- name: Set chezmoi repo source
+  set_fact:
+    chezmoi_source: "{{ chezmoi_repo_url if chezmoi_repo_url != '' else chezmoi_github_username }}"
+
+- name: Fail if no repo source configured
+  fail:
+    msg: "Either chezmoi_github_username or chezmoi_repo_url must be set"
+  when: chezmoi_source == ""
+
+# Initialize chezmoi (first time)
+- name: Initialize chezmoi with dotfiles repo
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  command: "chezmoi init {{ chezmoi_source }}"
+  when: not chezmoi_initialized.stat.exists
+  register: chezmoi_init_result
+
+# Apply dotfiles
+- name: Apply chezmoi dotfiles
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  command: "chezmoi apply --force"
+  when: chezmoi_auto_apply | bool
+  register: chezmoi_apply_result
+  changed_when: chezmoi_apply_result.rc == 0
+
+# Update if already initialized
+- name: Update chezmoi dotfiles (if already initialized)
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  command: "chezmoi update --force"
+  when:
+    - chezmoi_initialized.stat.exists
+    - chezmoi_auto_apply | bool
+  register: chezmoi_update_result
+  changed_when: chezmoi_update_result.rc == 0
+
+- name: Show chezmoi status
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  command: "chezmoi status"
+  register: chezmoi_status
+  changed_when: false
+  failed_when: false
+
+- name: Display chezmoi status
+  debug:
+    msg: "{{ chezmoi_status.stdout_lines }}"
+  when: chezmoi_status.stdout != ""
