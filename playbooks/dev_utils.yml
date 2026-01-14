@@ -37,6 +37,11 @@
         - dev
         - asdf
 
+    - role: claude_code
+      tags:
+        - dev
+        - claude
+
     # - role: cloudalchemy.node_exporter
     #   become: true
     #   tags:
