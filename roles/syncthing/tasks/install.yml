@@ -1,67 +1,129 @@
 ---
-- name: Add syncthing signing key to a specific keyring file
+# =============================================================================
+# Package Installation
+# =============================================================================
+
+# Debian/Ubuntu installation
+- name: Add syncthing signing key to a specific keyring file (Debian/Ubuntu)
   apt_key:
     url: https://syncthing.net/release-key.gpg
     keyring: /usr/share/keyrings/syncthing-archive-keyring.gpg
+  when: ansible_os_family == 'Debian'
 
-- name: Add syncthing repository into sources list
+- name: Add syncthing repository into sources list (Debian/Ubuntu)
   apt_repository:
     repo: deb [signed-by=/usr/share/keyrings/syncthing-archive-keyring.gpg] https://apt.syncthing.net/ syncthing stable
     state: present
     filename: syncthing
+  when: ansible_os_family == 'Debian'
   tags:
     - apt
 
-- name: Install apt dependencies
+- name: Install syncthing (Debian/Ubuntu)
   apt:
     name:
       - syncthing
     state: present
     update_cache: yes
+  when: ansible_os_family == 'Debian'
   tags:
     - apt
 
-- name: Add user "syncthing"
+# Arch Linux installation
+- name: Install syncthing (Arch Linux)
+  community.general.pacman:
+    name:
+      - syncthing
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Archlinux'
+  tags:
+    - pacman
+
+# =============================================================================
+# User Mode Setup (systemd --user service)
+# Recommended for workstations - runs as your own user
+# =============================================================================
+
+- name: Enable syncthing user service
+  become: false
+  systemd:
+    name: syncthing.service
+    scope: user
+    enabled: yes
+    state: started
+  when: syncthing_user_mode | bool
+  tags:
+    - systemd
+
+# =============================================================================
+# System Mode Setup (dedicated syncthing user)
+# For servers or shared systems
+# =============================================================================
+
+- name: Add user "syncthing" (Debian/Ubuntu - system mode)
   user:
     name: syncthing
     shell: /sbin/nologin
     create_home: yes
     comment: "Syncthing nologin User"
     state: present
+  when:
+    - not syncthing_user_mode | bool
+    - ansible_os_family == 'Debian'
 
-- name: Copy syncthing service description
+- name: Add user "syncthing" (Arch Linux - system mode)
+  user:
+    name: syncthing
+    shell: /usr/bin/nologin
+    create_home: yes
+    comment: "Syncthing nologin User"
+    state: present
+  when:
+    - not syncthing_user_mode | bool
+    - ansible_os_family == 'Archlinux'
+
+- name: Copy syncthing service description (system mode)
   copy:
     src: syncthing.service
     dest: /etc/systemd/system/syncthing.service
     mode: 0644
+  when: not syncthing_user_mode | bool
   tags:
     - systemd
 
-- name: Copy rsyslog configuration for syncthing service
+# rsyslog is only used on Debian/Ubuntu - Arch uses journald
+- name: Copy rsyslog configuration for syncthing service (Debian/Ubuntu - system mode)
   copy:
     src: rsyslog.conf
     dest: /etc/rsyslog.d/syncthing.conf
     mode: 0644
+  when:
+    - not syncthing_user_mode | bool
+    - ansible_os_family == 'Debian'
 
-- name: Stop syncthing if it is already running
+- name: Stop syncthing system service if running (system mode)
   systemd:
     name: syncthing.service
     state: stopped
+  when: not syncthing_user_mode | bool
   tags:
     - systemd
 
-- name: Enable service syncthing and ensure it is not masked
+- name: Enable syncthing system service (system mode)
   systemd:
     name: syncthing.service
     enabled: yes
     masked: no
+  when: not syncthing_user_mode | bool
   tags:
     - systemd
 
-- name: Make sure the service unit is running
+- name: Start syncthing system service (system mode)
   systemd:
     state: started
     daemon_reload: yes
     name: syncthing.service
+  when: not syncthing_user_mode | bool
   tags:
     - systemd

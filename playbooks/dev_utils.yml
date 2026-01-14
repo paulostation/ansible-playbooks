@@ -41,7 +41,9 @@
     #   tags:
     #     - dev
 
+    # indicator-sysmonitor uses Ubuntu PPA - skip on Arch
     - role: indicator-sysmonitor
       become: true
+      when: ansible_os_family == 'Debian'
       tags:
         - utils

@@ -1,9 +1,19 @@
 ---
-- name: Ensure apt cache is updated
+- name: Ensure apt cache is updated (Debian/Ubuntu)
   become: true
   ansible.builtin.apt:
     update_cache: true
-  when: asdf_update_cache
+  when:
+    - asdf_update_cache
+    - ansible_os_family == 'Debian'
+
+- name: Ensure pacman cache is updated (Arch Linux)
+  become: true
+  community.general.pacman:
+    update_cache: true
+  when:
+    - asdf_update_cache
+    - ansible_os_family == 'Archlinux'
 
 - name: Install prerequisites
   become: true
