@@ -53,11 +53,12 @@ define cleanup_inventory
 	rm -f $(TEMP_INVENTORY)
 endef
 
-.PHONY: help setup run networking users syncthing docker pxe edit-secrets encrypt decrypt clean
+.PHONY: help setup setup-sops run networking users syncthing docker pxe edit-secrets encrypt encrypt-hosts decrypt clean
 
 help:
 	@echo "Available targets:"
 	@echo "  setup          - Install Python venv and Ansible dependencies"
+	@echo "  setup-sops     - Setup SOPS + age encryption (run once per machine)"
 	@echo "  run            - Run main playbook (all roles)"
 	@echo "  networking     - Run networking role only"
 	@echo "  users          - Run users role only"
@@ -65,7 +66,8 @@ help:
 	@echo "  docker         - Run docker role only"
 	@echo "  pxe            - Run PXE server role only"
 	@echo "  edit-secrets   - Edit encrypted inventory with sops"
-	@echo "  encrypt        - Encrypt inventory file"
+	@echo "  encrypt        - Encrypt inventory file in-place"
+	@echo "  encrypt-hosts  - Encrypt hosts.yml to hosts.sops.yml"
 	@echo "  decrypt        - Decrypt inventory to stdout"
 	@echo "  clean          - Remove temp files"
 	@echo ""
@@ -80,6 +82,13 @@ setup:
 	source $(VENV)/bin/activate && ansible-galaxy collection install -r requirements.yml
 	source $(VENV)/bin/activate && ansible-galaxy collection install community.sops
 	@echo "Setup complete!"
+
+setup-sops:
+	$(setup_env)
+	ansible-playbook -i hosts.yml playbooks/setup_sops.yml -l localhost $(ARGS)
+	@echo ""
+	@echo "SOPS setup complete! You can now encrypt your hosts.yml with:"
+	@echo "  make encrypt-hosts"
 
 run:
 	$(setup_env)
@@ -123,6 +132,19 @@ edit-secrets:
 encrypt:
 	@sops -e -i $(INVENTORY)
 	@echo "Inventory encrypted."
+
+encrypt-hosts:
+	@if [ ! -f hosts.yml ]; then \
+		echo "Error: hosts.yml not found"; \
+		exit 1; \
+	fi
+	@if [ -f hosts.sops.yml ]; then \
+		echo "Warning: hosts.sops.yml already exists. Backing up to hosts.sops.yml.bak"; \
+		cp hosts.sops.yml hosts.sops.yml.bak; \
+	fi
+	@sops -e hosts.yml > hosts.sops.yml
+	@echo "hosts.yml encrypted to hosts.sops.yml"
+	@echo "You can now safely remove hosts.yml if desired (keep a backup!)"
 
 decrypt:
 	@sops -d $(INVENTORY)

@@ -1,0 +1,24 @@
+---
+# SOPS + age encryption setup defaults
+
+# User to configure sops for
+sops_user: "{{ ansible_user }}"
+sops_group: "{{ ansible_user }}"
+
+# Directory for age keys
+sops_age_key_dir: "{{ ansible_env.HOME }}/.config/sops/age"
+sops_age_key_file: "{{ sops_age_key_dir }}/keys.txt"
+
+# Where to create .sops.yaml config
+sops_config_dir: "{{ playbook_dir }}"
+
+# Files/patterns to encrypt (used in .sops.yaml)
+sops_encrypted_files:
+  - "hosts.sops.yml"
+  - "*.sops.yml"
+  - "*.sops.yaml"
+
+# Whether to encrypt hosts.yml after setup
+sops_encrypt_hosts: false
+sops_hosts_source: "{{ playbook_dir }}/hosts.yml"
+sops_hosts_dest: "{{ playbook_dir }}/hosts.sops.yml"
