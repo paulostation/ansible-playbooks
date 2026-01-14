@@ -60,27 +60,32 @@
   when: asdf_shell == "zsh"
   become: true
   become_user: "{{ asdf_user }}"
-  ansible.builtin.lineinfile:
+  ansible.builtin.blockinfile:
     path: "/home/{{ asdf_user }}/.zshrc"
     create: true
-    line: |
-      # asdf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - asdf"
+    block: |
+      # asdf version manager
+      export ASDF_DIR="{{ asdf_dir }}"
       . "{{ asdf_dir }}/asdf.sh"
-      . "{{ asdf_dir }}/completions/asdf.zsh"
-    insertafter: EOF
+      # asdf completions
+      fpath=({{ asdf_dir }}/completions $fpath)
+      autoload -Uz compinit && compinit
   register: zshrc_added
 
 - name: Add asdf init to .bashrc (if shell is bash)
   when: asdf_shell == "bash"
   become: true
   become_user: "{{ asdf_user }}"
-  ansible.builtin.lineinfile:
+  ansible.builtin.blockinfile:
     path: "/home/{{ asdf_user }}/.bashrc"
     create: true
-    line: |
-      # asdf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - asdf"
+    block: |
+      # asdf version manager
+      export ASDF_DIR="{{ asdf_dir }}"
       . "{{ asdf_dir }}/asdf.sh"
-    insertafter: EOF
+      . "{{ asdf_dir }}/completions/asdf.bash"
   register: bashrc_added
 
 # Remove (or keep) the previous .zshrc/.bashrc "source" usage for runtime.
