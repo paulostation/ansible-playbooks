@@ -9,8 +9,8 @@ sops_group: "{{ ansible_user }}"
 sops_age_key_dir: "{{ ansible_env.HOME }}/.config/sops/age"
 sops_age_key_file: "{{ sops_age_key_dir }}/keys.txt"
 
-# Where to create .sops.yaml config
-sops_config_dir: "{{ playbook_dir }}"
+# Where to create .sops.yaml config (repo root, not playbooks dir)
+sops_config_dir: "{{ playbook_dir | dirname }}"
 
 # Files/patterns to encrypt (used in .sops.yaml)
 sops_encrypted_files:

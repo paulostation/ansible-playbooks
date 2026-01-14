@@ -31,6 +31,18 @@
     - ansible_os_family == 'Debian'
     - not sops_binary_debian.stat.exists | default(true)
 
+- name: Check if sops is installed (Arch Linux)
+  stat:
+    path: /usr/bin/sops
+  register: sops_binary_arch
+  when: ansible_os_family == 'Archlinux'
+
+- name: Check if age is installed (Arch Linux)
+  stat:
+    path: /usr/bin/age
+  register: age_binary_arch
+  when: ansible_os_family == 'Archlinux'
+
 - name: Install sops and age (Arch Linux)
   become: true
   community.general.pacman:
@@ -39,7 +51,9 @@
       - age
     state: present
     update_cache: yes
-  when: ansible_os_family == 'Archlinux'
+  when:
+    - ansible_os_family == 'Archlinux'
+    - not (sops_binary_arch.stat.exists | default(false) and age_binary_arch.stat.exists | default(false))
 
 # =============================================================================
 # Age Key Setup
