@@ -20,7 +20,6 @@
       - nodejs
       - npm
       - unzip
-      - pipx
       - ripgrep
       - fd-find
       - fzf
@@ -46,7 +45,6 @@
       - nodejs
       - npm
       - unzip
-      - python-pipx
       - ripgrep
       - fd
       - fzf
@@ -81,28 +79,27 @@
   ignore_errors: true
   become: true
 
-- name: Ensure pipx path is available in shell
-  shell: pipx ensurepath
+# Use virtualenv instead of pipx for hererocks (avoids pipx version issues)
+- name: Create virtualenv for hererocks
+  become: false
+  command: python3 -m venv {{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv
   args:
-    executable: /bin/bash
+    creates: "{{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv/bin/python"
 
-- name: Install hererocks using pipx
-  shell: pipx install hererocks || true
-  args:
-    executable: /bin/bash
-
-#- name: Create LuaRocks environment with hererocks (with luarocks)
-#  shell: |
-#    set -euxo pipefail
-#    pipx run hererocks ~/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest --luarocks
-#  args:
-#    creates: ~/.local/share/nvim/lazy-rocks/hererocks/bin/activate
+- name: Install hererocks in virtualenv
+  become: false
+  pip:
+    name: hererocks
+    virtualenv: "{{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv"
+    state: present
 
 - name: Create LuaRocks environment with hererocks
+  become: false
   shell: |
-    pipx run hererocks ~/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest
+    {{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv/bin/hererocks \
+      {{ ansible_env.HOME }}/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest
   args:
-    creates: ~/.local/share/nvim/lazy-rocks/hererocks/bin/luarocks
+    creates: "{{ ansible_env.HOME }}/.local/share/nvim/lazy-rocks/hererocks/bin/luarocks"
 
 - name: Ensure hererocks Lua binary exists
   stat:
@@ -132,19 +129,29 @@
     state: present
     insertafter: EOF
 
-- name: Create Neovim config directories
-  file:
-    path: "{{ item }}"
-    state: directory
-    mode: 0755
-  loop:
-    - "~/.config/nvim"
+- name: Check if nvim config directory exists
+  stat:
+    path: "~/.config/nvim"
+  register: nvim_config_dir
+
+- name: Check if nvim config is a git repo
+  stat:
+    path: "~/.config/nvim/.git"
+  register: nvim_config_git
+
+- name: Backup existing nvim config (if exists and not a git repo)
+  shell: mv ~/.config/nvim ~/.config/nvim.bak.$(date +%Y_%m_%d_%H_%M_%S)
+  when:
+    - nvim_config_source == "git"
+    - nvim_config_dir.stat.exists
+    - not nvim_config_git.stat.exists
 
 - name: Clone Neovim config from Git
   git:
     repo: "{{ nvim_git_repo }}"
     dest: "~/.config/nvim"
     version: "HEAD"
+    force: no
   when: nvim_config_source == "git"
 
 - name: Install Python Neovim support
