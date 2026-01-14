@@ -6,12 +6,12 @@
 creation_rules:
   # Match hosts.yml for encryption
   - path_regex: hosts\.yml$
-    age: {{ age_public_key.stdout }}
+    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
 
   # Match any .sops.yml or .sops.yaml file (for editing/decryption)
   - path_regex: .*\.sops\.(yml|yaml)$
-    age: {{ age_public_key.stdout }}
+    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
 
-  # Match any yaml file (fallback)
+  # Match any yaml file (fallback - be careful with this)
   - path_regex: .*\.(yml|yaml)$
-    age: {{ age_public_key.stdout }}
+    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
