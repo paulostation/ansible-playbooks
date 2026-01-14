@@ -1,0 +1,39 @@
+---
+# Install Claude Code binary
+
+- name: Check if claude is already installed
+  command: which claude
+  register: claude_which
+  changed_when: false
+  failed_when: false
+
+- name: Install Claude Code via official script
+  become: false
+  shell: curl -fsSL https://claude.ai/install.sh | bash
+  args:
+    creates: "{{ ansible_env.HOME }}/.claude/local/bin/claude"
+  when:
+    - claude_which.rc != 0
+    - claude_code_install_method == "script"
+
+- name: Install Claude Code via npm (fallback)
+  become: true
+  npm:
+    name: "@anthropic-ai/claude-code"
+    global: yes
+    state: present
+  when:
+    - claude_which.rc != 0
+    - claude_code_install_method == "npm"
+
+- name: Verify Claude Code installation
+  become: false
+  shell: |
+    export PATH="$HOME/.claude/local/bin:$PATH"
+    claude --version
+  register: claude_version
+  changed_when: false
+
+- name: Display Claude Code version
+  debug:
+    msg: "Installed Claude Code: {{ claude_version.stdout }}"
