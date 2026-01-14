@@ -1,0 +1,13 @@
+---
+# Claude Code CLI defaults
+
+claude_code_user: "{{ ansible_user }}"
+
+# Installation method: "script" (recommended) or "npm"
+claude_code_install_method: "script"
+
+# Plugin configuration
+claude_code_install_superpowers: true
+
+# Config directory (Claude Code uses ~/.claude)
+claude_code_config_dir: "{{ ansible_env.HOME }}/.claude"
