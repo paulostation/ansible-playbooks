@@ -1,0 +1,156 @@
+---
+# SOPS + age encryption setup
+
+# =============================================================================
+# Package Installation
+# =============================================================================
+
+- name: Install sops and age (Debian/Ubuntu)
+  become: true
+  apt:
+    name:
+      - age
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
+
+# SOPS is not in Debian repos, install from GitHub
+- name: Check if sops is installed (Debian/Ubuntu)
+  stat:
+    path: /usr/local/bin/sops
+  register: sops_binary_debian
+  when: ansible_os_family == 'Debian'
+
+- name: Install sops from GitHub release (Debian/Ubuntu)
+  become: true
+  get_url:
+    url: "https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64"
+    dest: /usr/local/bin/sops
+    mode: "0755"
+  when:
+    - ansible_os_family == 'Debian'
+    - not sops_binary_debian.stat.exists | default(true)
+
+- name: Install sops and age (Arch Linux)
+  become: true
+  community.general.pacman:
+    name:
+      - sops
+      - age
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Archlinux'
+
+# =============================================================================
+# Age Key Setup
+# =============================================================================
+
+- name: Ensure age key directory exists
+  file:
+    path: "{{ sops_age_key_dir }}"
+    state: directory
+    mode: "0700"
+    owner: "{{ sops_user }}"
+    group: "{{ sops_group }}"
+
+- name: Check if age key already exists
+  stat:
+    path: "{{ sops_age_key_file }}"
+  register: age_key_stat
+
+- name: Generate age key pair
+  shell: age-keygen -o "{{ sops_age_key_file }}"
+  args:
+    creates: "{{ sops_age_key_file }}"
+  when: not age_key_stat.stat.exists
+
+- name: Set correct permissions on age key file
+  file:
+    path: "{{ sops_age_key_file }}"
+    mode: "0600"
+    owner: "{{ sops_user }}"
+    group: "{{ sops_group }}"
+
+- name: Read age public key
+  shell: grep -o 'age1[a-z0-9]*' "{{ sops_age_key_file }}"
+  register: age_public_key
+  changed_when: false
+
+- name: Display age public key
+  debug:
+    msg: "Your age public key is: {{ age_public_key.stdout }}"
+
+# =============================================================================
+# SOPS Configuration
+# =============================================================================
+
+- name: Create .sops.yaml configuration
+  template:
+    src: sops.yaml.j2
+    dest: "{{ sops_config_dir }}/.sops.yaml"
+    mode: "0644"
+
+# =============================================================================
+# Environment Setup
+# =============================================================================
+
+- name: Add SOPS_AGE_KEY_FILE to shell profile (.zshrc)
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.zshrc"
+    line: 'export SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}"'
+    create: yes
+    state: present
+  when: ansible_env.SHELL is search('zsh')
+
+- name: Add SOPS_AGE_KEY_FILE to shell profile (.bashrc)
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    line: 'export SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}"'
+    create: yes
+    state: present
+  when: ansible_env.SHELL is search('bash')
+
+# =============================================================================
+# Optional: Encrypt hosts.yml
+# =============================================================================
+
+- name: Check if unencrypted hosts.yml exists
+  stat:
+    path: "{{ sops_hosts_source }}"
+  register: hosts_yml_stat
+  when: sops_encrypt_hosts
+
+- name: Check if encrypted hosts.sops.yml already exists
+  stat:
+    path: "{{ sops_hosts_dest }}"
+  register: hosts_sops_stat
+  when: sops_encrypt_hosts
+
+- name: Encrypt hosts.yml to hosts.sops.yml
+  shell: |
+    export SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}"
+    sops -e "{{ sops_hosts_source }}" > "{{ sops_hosts_dest }}"
+  args:
+    creates: "{{ sops_hosts_dest }}"
+  when:
+    - sops_encrypt_hosts
+    - hosts_yml_stat.stat.exists | default(false)
+    - not hosts_sops_stat.stat.exists | default(true)
+
+- name: Display setup summary
+  debug:
+    msg: |
+      SOPS + age setup complete!
+
+      Age key location: {{ sops_age_key_file }}
+      Age public key: {{ age_public_key.stdout }}
+      SOPS config: {{ sops_config_dir }}/.sops.yaml
+
+      To encrypt a file:
+        sops -e secrets.yml > secrets.sops.yml
+
+      To decrypt a file:
+        sops -d secrets.sops.yml
+
+      To edit an encrypted file:
+        sops secrets.sops.yml
