@@ -2,19 +2,25 @@
   pip:
     name: lxml
 
-- name: Debug
-  # vars:
-  #   msg: |
-  #       Checking audio status
-  #       pactl output:
-  #       {{ pactl_output.stdout }}
+- name: Debug devices to add
   debug:
     msg: "{{ devices_to_add }}"
 
-
-- name: Add configured devices
+# User mode - run as current user
+- name: Add configured devices (user mode)
   command: syncthing cli config devices add --device-id {{ item.device_id }} --name {{ item.name }}
-  with_items:
-    "{{ devices_to_add }}"
+  with_items: "{{ devices_to_add }}"
+  become: false
+  when: syncthing_user_mode | bool
+  ignore_errors: true
+
+# System mode - run as syncthing user
+- name: Add configured devices (system mode)
+  command: syncthing cli config devices add --device-id {{ item.device_id }} --name {{ item.name }}
+  with_items: "{{ devices_to_add }}"
   become: yes
   become_user: syncthing
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  when: not syncthing_user_mode | bool
+  ignore_errors: true

@@ -1,4 +1,5 @@
-- name: Install apt dependencies
+# Ubuntu/Debian package installation
+- name: Install apt dependencies (Debian/Ubuntu)
   apt:
     name:
       - net-tools
@@ -6,23 +7,42 @@
       - python3-pip
     state: present
     update_cache: yes
+  when: ansible_os_family == 'Debian'
   tags:
     - apt
 
-
-- name: Install KeePassXC apt package
+- name: Install KeePassXC apt package (Debian/Ubuntu)
   apt:
     name: keepassxc
     state: present
     update_cache: yes
+  when: ansible_os_family == 'Debian'
 
-- name: Install everyday use packages
+- name: Install everyday use packages (Debian/Ubuntu)
   apt:
     name:
-    - tmux
-    - htop
-    - vim
+      - tmux
+      - htop
+      - vim
     state: present
+  when: ansible_os_family == 'Debian'
+
+# Arch Linux package installation
+- name: Install packages (Arch Linux)
+  community.general.pacman:
+    name:
+      - net-tools
+      - git
+      - python-pip
+      - keepassxc
+      - tmux
+      - htop
+      - vim
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Archlinux'
+  tags:
+    - pacman
 
 - name: Copy config files
   copy:
