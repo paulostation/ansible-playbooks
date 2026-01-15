@@ -1,15 +1,22 @@
-# SOPS configuration using age encryption
+# SOPS configuration file
+# Uses both age and AWS KMS encryption for redundancy
+#
+# Decryption requires EITHER:
+#   - age private key (~/.config/sops/age/keys.txt)
+#   - AWS credentials with KMS decrypt permission
+
 creation_rules:
-  # Encrypt all yaml files in secrets directory
-  - path_regex: secrets/.*\.ya?ml$
-    age: age1hz38nr8hn2qtasd5kd0e5r3fxuxv098mx4y9c58789kzaxsr0gnsmxsg9r
+  # Match hosts.yml for encryption
+  - path_regex: hosts\.yml$
+    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
+    kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
 
-  # Encrypt sensitive values in hosts.yml
-  - path_regex: hosts\.ya?ml$
-    age: age1hz38nr8hn2qtasd5kd0e5r3fxuxv098mx4y9c58789kzaxsr0gnsmxsg9r
-    encrypted_regex: "^(.*password.*|.*secret.*|.*token.*|.*key.*)$"
+  # Match any .sops.yml or .sops.yaml file (for editing/decryption)
+  - path_regex: .*\.sops\.(yml|yaml)$
+    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
+    kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
 
-# Usage:
-# - Encrypt: sops -e -i secrets/file.yml
-# - Decrypt for editing: sops secrets/file.yml
-# - View decrypted: sops -d secrets/file.yml
+  # Match any yaml file (fallback - be careful with this)
+  - path_regex: .*\.(yml|yaml)$
+    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
+    kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
