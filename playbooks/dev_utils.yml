@@ -8,11 +8,6 @@
       tags:
         - dev
 
-    - role: yazi
-      tags:
-        - dev
-        - yazi
-
     - role: syncthing
       become: true
       tags:
@@ -25,28 +20,11 @@
         - dev
         - vscode
 
-    - role: chezmoi
+    - role: cloudalchemy.node_exporter
       become: true
       tags:
-        - dev
-        - chezmoi
-
-    - role: asdf_cli
-      become: true
-      tags:
-        - dev
-        - asdf
-
-    - role: claude_code
-      tags:
-        - dev
-        - claude
-
-    # - role: cloudalchemy.node_exporter
-    #   become: true
-    #   tags:
-    #     - infra
-    #     - metrics
+        - infra
+        - metrics
 
     - role: geerlingguy.docker
       become: true
@@ -58,9 +36,7 @@
     #   tags:
     #     - dev
 
-    # indicator-sysmonitor uses Ubuntu PPA - skip on Arch
     - role: indicator-sysmonitor
       become: true
-      when: ansible_os_family == 'Debian'
       tags:
         - utils

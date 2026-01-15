@@ -1,9 +1,0 @@
----
-# Claude Code CLI role
-
-- name: Install Claude Code
-  include_tasks: install.yml
-
-- name: Configure plugins
-  include_tasks: plugins.yml
-  when: claude_code_install_superpowers | bool

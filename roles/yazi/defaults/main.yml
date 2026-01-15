@@ -1,6 +1,0 @@
----
-yazi_user: "{{ ansible_user }}"
-yazi_shell: "zsh"                    # Options: zsh, bash, both
-yazi_install_method: "binary"        # Options: binary, cargo
-yazi_install_dir: "/usr/local/bin"   # For binary method
-yazi_cargo_home: "{{ ansible_env.HOME }}/.cargo"  # For cargo method

@@ -1,5 +1,4 @@
-# Ubuntu/Debian package installation
-- name: Install apt dependencies (Debian/Ubuntu)
+- name: Install apt dependencies
   apt:
     name:
       - net-tools
@@ -7,42 +6,23 @@
       - python3-pip
     state: present
     update_cache: yes
-  when: ansible_os_family == 'Debian'
   tags:
     - apt
 
-- name: Install KeePassXC apt package (Debian/Ubuntu)
+
+- name: Install KeePassXC apt package
   apt:
     name: keepassxc
     state: present
     update_cache: yes
-  when: ansible_os_family == 'Debian'
 
-- name: Install everyday use packages (Debian/Ubuntu)
+- name: Install everyday use packages
   apt:
     name:
-      - tmux
-      - htop
-      - vim
+    - tmux
+    - htop
+    - vim
     state: present
-  when: ansible_os_family == 'Debian'
-
-# Arch Linux package installation
-- name: Install packages (Arch Linux)
-  community.general.pacman:
-    name:
-      - net-tools
-      - git
-      - python-pip
-      - keepassxc
-      - tmux
-      - htop
-      - vim
-    state: present
-    update_cache: yes
-  when: ansible_os_family == 'Archlinux'
-  tags:
-    - pacman
 
 - name: Copy config files
   copy:
@@ -60,10 +40,3 @@
 - name: Installing Oh My Zsh
   include_tasks:
     file: oh-my-zsh.yml
-
-- name: Installing Atuin shell history
-  include_tasks:
-    file: atuin.yml
-  when: atuin_enabled | default(true) | bool
-  tags:
-    - atuin
