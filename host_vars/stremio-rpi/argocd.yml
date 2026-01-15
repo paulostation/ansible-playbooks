@@ -1,0 +1,24 @@
+---
+# ArgoCD configuration for stremio-rpi
+# Multi-repo GitOps pattern: helm-templates + prod-values
+
+# Repository URLs
+argocd_helm_repo_url: "git@github.com:paulostation/helm-templates.git"
+argocd_values_repo_url: "git@github.com:paulostation/prod-values.git"
+
+# SSH key for repository access (SOPS encrypted)
+# Generate with: ssh-keygen -t ed25519 -C "argocd-deploy-key" -f ~/.ssh/argocd-deploy-key
+# Add as deploy key to both repos on GitHub
+# Encrypt with: sops -e -i host_vars/stremio-rpi/argocd.yml
+argocd_repos_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  REPLACE_WITH_YOUR_DEPLOY_KEY
+  -----END OPENSSH PRIVATE KEY-----
+
+# Values path prefix for tiered values (group/environment)
+argocd_values_path_prefix: "production/stremio-rpi"
+
+# Root application settings
+argocd_root_app_enabled: true
+argocd_root_app_path: "apps"
+argocd_root_app_target_revision: "HEAD"

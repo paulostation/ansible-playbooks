@@ -1,0 +1,117 @@
+---
+# k3s Role - Main Tasks
+
+- name: Ensure data directory exists
+  ansible.builtin.file:
+    path: "{{ k3s_data_dir }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Ensure k3s config directory exists
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Configure k3s with secrets encryption
+  ansible.builtin.copy:
+    content: |
+      secrets-encryption: {{ k3s_secrets_encryption | lower }}
+    dest: /etc/rancher/k3s/config.yaml
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  when: k3s_secrets_encryption
+
+- name: Check if k3s is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Download k3s install script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: '0755'
+  when: not k3s_binary.stat.exists
+
+- name: Build k3s install arguments
+  ansible.builtin.set_fact:
+    k3s_install_args: >-
+      {% for component in k3s_disable %}--disable={{ component }} {% endfor %}
+      --data-dir={{ k3s_data_dir }}
+      --cluster-cidr={{ k3s_cluster_cidr }}
+      --service-cidr={{ k3s_service_cidr }}
+      {% for arg in k3s_extra_args %}{{ arg }} {% endfor %}
+
+- name: Install k3s
+  ansible.builtin.shell: |
+    INSTALL_K3S_VERSION="{{ k3s_version }}" \
+    INSTALL_K3S_EXEC="{{ k3s_install_args }}" \
+    /tmp/k3s-install.sh
+  args:
+    creates: /usr/local/bin/k3s
+  become: true
+  environment:
+    INSTALL_K3S_SKIP_START: "false"
+
+- name: Wait for k3s to be ready
+  ansible.builtin.wait_for:
+    path: /etc/rancher/k3s/k3s.yaml
+    state: present
+    timeout: 120
+  become: true
+
+- name: Wait for node to be ready
+  ansible.builtin.command: kubectl wait --for=condition=Ready node --all --timeout=120s
+  become: true
+  changed_when: false
+  retries: 5
+  delay: 10
+  register: node_ready
+  until: node_ready.rc == 0
+
+- name: Check secrets encryption status
+  ansible.builtin.command: k3s secrets-encrypt status
+  become: true
+  register: secrets_status
+  changed_when: false
+  failed_when: false
+  when: k3s_secrets_encryption
+
+- name: Display encryption status
+  ansible.builtin.debug:
+    msg: "{{ secrets_status.stdout_lines | default(['Encryption status unknown']) }}"
+  when: k3s_secrets_encryption
+
+- name: Fetch kubeconfig
+  ansible.builtin.fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "{{ k3s_kubeconfig_local_path }}"
+    flat: true
+  become: true
+
+- name: Update kubeconfig server address
+  ansible.builtin.replace:
+    path: "{{ k3s_kubeconfig_local_path }}"
+    regexp: 'server: https://127.0.0.1:6443'
+    replace: 'server: https://{{ wireguard_client_ip | default(ansible_host) }}:6443'
+  delegate_to: localhost
+  become: false
+
+- name: Display k3s status
+  ansible.builtin.command: kubectl get nodes -o wide
+  become: true
+  changed_when: false
+  register: k3s_nodes
+
+- name: Show nodes
+  ansible.builtin.debug:
+    msg: "{{ k3s_nodes.stdout_lines }}"
