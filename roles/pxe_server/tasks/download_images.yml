@@ -2,7 +2,17 @@
 # Download PXE boot images
 
 # Handle images with direct kernel/initrd URLs (Debian, CentOS)
-- name: Download kernel (direct URL)
+- name: Create HTTP directories for direct URL images
+  file:
+    path: "{{ http_root }}/{{ item.key }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.kernel_url is defined
+
+- name: Download kernel (direct URL) to TFTP
   get_url:
     url: "{{ item.value.kernel_url }}"
     dest: "{{ tftp_root }}/{{ item.value.kernel }}"
@@ -12,10 +22,30 @@
     - item.value.enabled | default(false)
     - item.value.kernel_url is defined
 
-- name: Download initrd (direct URL)
+- name: Download initrd (direct URL) to TFTP
   get_url:
     url: "{{ item.value.initrd_url }}"
     dest: "{{ tftp_root }}/{{ item.value.initrd }}"
+    mode: '0644'
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.initrd_url is defined
+
+- name: Download kernel (direct URL) to HTTP
+  get_url:
+    url: "{{ item.value.kernel_url }}"
+    dest: "{{ http_root }}/{{ item.value.kernel }}"
+    mode: '0644'
+  loop: "{{ pxe_boot_images | dict2items }}"
+  when:
+    - item.value.enabled | default(false)
+    - item.value.kernel_url is defined
+
+- name: Download initrd (direct URL) to HTTP
+  get_url:
+    url: "{{ item.value.initrd_url }}"
+    dest: "{{ http_root }}/{{ item.value.initrd }}"
     mode: '0644'
   loop: "{{ pxe_boot_images | dict2items }}"
   when:

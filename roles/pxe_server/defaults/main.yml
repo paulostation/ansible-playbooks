@@ -1,5 +1,5 @@
 # PXE Server Configuration
-pxe_interface: eth0
+pxe_interface: wlan0
 pxe_server_ip: "{{ ansible_host }}"
 pxe_network: 192.168.15.0
 
@@ -8,6 +8,16 @@ tftp_root: /srv/tftp
 
 # HTTP server for live boot images
 http_root: /var/www/html
+
+# UEFI Support
+uefi_enabled: true
+grub_efi_deb_url: "http://ftp.us.debian.org/debian/pool/main/g/grub-efi-amd64-signed/grub-efi-amd64-signed_1+2.06+13+deb12u1_amd64.deb"
+grub_efi_deb_checksum: "sha256:009cf7628c0b6cf1f4472df8b9bf5db603028185db63670686d5b985c4f4bc9d"
+grub_efi_dest: grubnetx64.efi
+
+# NFS Support (for low-RAM boot)
+nfs_enabled: true
+nfs_export_options: "ro,no_root_squash,no_subtree_check"
 
 # Boot images to download
 pxe_boot_images:
@@ -18,7 +28,7 @@ pxe_boot_images:
     initrd_url: "http://deb.debian.org/debian/dists/bookworm/main/installer-amd64/current/images/netboot/debian-installer/amd64/initrd.gz"
     kernel: "debian/linux"
     initrd: "debian/initrd.gz"
-    append: ""
+    append: "nomodeset"
 
   ubuntu2204:
     enabled: true
@@ -26,7 +36,7 @@ pxe_boot_images:
     iso_url: "https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso"
     kernel: "ubuntu2204/vmlinuz"
     initrd: "ubuntu2204/initrd"
-    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2204/ubuntu-22.04-live-server-amd64.iso"
+    append: "nomodeset ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2204/ubuntu-22.04.5-live-server-amd64.iso"
 
   ubuntu2404:
     enabled: true
@@ -34,7 +44,7 @@ pxe_boot_images:
     iso_url: "https://releases.ubuntu.com/24.04.1/ubuntu-24.04.1-live-server-amd64.iso"
     kernel: "ubuntu2404/vmlinuz"
     initrd: "ubuntu2404/initrd"
-    append: "ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2404/ubuntu-24.04-live-server-amd64.iso"
+    append: "nomodeset ip=dhcp url=http://{{ pxe_server_ip }}/ubuntu2404/ubuntu-24.04.1-live-server-amd64.iso"
 
   centos:
     enabled: true
@@ -43,7 +53,7 @@ pxe_boot_images:
     initrd_url: "https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/images/pxeboot/initrd.img"
     kernel: "centos/vmlinuz"
     initrd: "centos/initrd.img"
-    append: "inst.repo=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/"
+    append: "nomodeset inst.repo=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/"
 
   systemrescue:
     enabled: true
@@ -51,7 +61,7 @@ pxe_boot_images:
     iso_url: "https://sourceforge.net/projects/systemrescuecd/files/sysresccd-x86/11.03/systemrescue-11.03-amd64.iso/download"
     kernel: "systemrescue/vmlinuz"
     initrd: "systemrescue/sysresccd.img"
-    append: "archisobasedir=sysresccd archiso_http_srv=http://{{ pxe_server_ip }}/systemrescue/"
+    append: "nomodeset archisobasedir=sysresccd archiso_http_srv=http://{{ pxe_server_ip }}/systemrescue/"
 
   omarchy:
     enabled: true
@@ -59,7 +69,16 @@ pxe_boot_images:
     iso_url: "https://iso.omarchy.org/omarchy-3.1.6.iso"
     kernel: "omarchy/vmlinuz"
     initrd: "omarchy/initramfs.img"
-    append: "archisobasedir=arch archiso_http_srv=http://{{ pxe_server_ip }}/omarchy/"
+    append: "nomodeset archisobasedir=arch archiso_http_srv=http://{{ pxe_server_ip }}/omarchy/"
+    nfs_boot: true
+
+  proxmox:
+    enabled: true
+    label: "Proxmox VE 9.1"
+    iso_url: "https://enterprise.proxmox.com/iso/proxmox-ve_9.1-1.iso"
+    kernel: "proxmox/vmlinuz"
+    initrd: "proxmox/initrd.img"
+    append: "nomodeset vga=791 video=vesafb:ywrap,mtrr:3 proxdebug"
 
 # PXE menu settings
 pxe_menu_timeout: 300
