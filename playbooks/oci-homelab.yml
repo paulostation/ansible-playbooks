@@ -3,7 +3,7 @@
 # Configures the OCI VPS as WireGuard VPN hub and DNS server
 
 - name: Configure OCI Homelab VPS
-  hosts: oci_homelab
+  hosts: aws_vpn_hub
   become: true
   gather_facts: true
 
