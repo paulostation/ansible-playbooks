@@ -70,7 +70,7 @@
   become: true
 
 - name: Wait for node to be ready
-  ansible.builtin.command: kubectl wait --for=condition=Ready node --all --timeout=120s
+  ansible.builtin.command: /usr/local/bin/k3s kubectl wait --for=condition=Ready node --all --timeout=120s
   become: true
   changed_when: false
   retries: 5
