@@ -19,7 +19,7 @@ k3s_extra_args:
 k3s_secrets_encryption: true
 
 # Path to store kubeconfig locally
-k3s_kubeconfig_local_path: "~/.kube/stremio-rpi.yaml"
+k3s_kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/stremio-rpi.yaml"
 
 # k3s data directory
 k3s_data_dir: "/var/lib/rancher/k3s"
