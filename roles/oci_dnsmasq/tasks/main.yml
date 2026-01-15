@@ -1,0 +1,57 @@
+---
+# OCI Dnsmasq Role - Main Tasks
+
+- name: Install dnsmasq
+  ansible.builtin.apt:
+    name: dnsmasq
+    state: present
+    update_cache: true
+  become: true
+
+- name: Stop systemd-resolved (conflicts with dnsmasq)
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+  become: true
+  ignore_errors: true
+
+- name: Configure dnsmasq
+  ansible.builtin.template:
+    src: dnsmasq.conf.j2
+    dest: /etc/dnsmasq.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  notify: Restart dnsmasq
+
+- name: Configure local hosts file for DNS
+  ansible.builtin.template:
+    src: hosts.local.j2
+    dest: /etc/hosts.local
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: Restart dnsmasq
+
+- name: Configure resolv.conf to use local DNS
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible - use local dnsmasq
+      nameserver 127.0.0.1
+      search {{ dnsmasq_domain }}
+    dest: /etc/resolv.conf
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+
+- name: Enable and start dnsmasq
+  ansible.builtin.systemd:
+    name: dnsmasq
+    enabled: true
+    state: started
+  become: true
