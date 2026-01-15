@@ -149,7 +149,7 @@
 
 - name: Check for REJECT rule in FORWARD chain
   ansible.builtin.shell: |
-    iptables -L FORWARD --line-numbers -n | grep -n "REJECT" | head -1 | cut -d: -f1
+    iptables -L FORWARD --line-numbers -n | grep "REJECT" | awk '{print $1}' | head -1
   register: forward_reject_line
   changed_when: false
   failed_when: false
