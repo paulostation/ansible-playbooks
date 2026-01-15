@@ -1,0 +1,102 @@
+---
+# ArgoCD Role - Main Tasks
+
+- name: Create ArgoCD namespace
+  kubernetes.core.k8s:
+    name: "{{ argocd_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  become: true
+
+- name: Create SOPS AGE key secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: sops-age-key
+        namespace: "{{ argocd_namespace }}"
+      type: Opaque
+      stringData:
+        keys.txt: "{{ argocd_age_private_key }}"
+  become: true
+  no_log: true
+  when: argocd_age_private_key | length > 0
+
+- name: Add ArgoCD Helm repository
+  kubernetes.core.helm_repository:
+    name: argo
+    repo_url: "{{ argocd_chart_repo }}"
+  become: true
+
+- name: Template ArgoCD Helm values
+  ansible.builtin.template:
+    src: argocd-values.yaml.j2
+    dest: /tmp/argocd-values.yaml
+    mode: '0600'
+
+- name: Install/Upgrade ArgoCD via Helm
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: argo/argo-cd
+    chart_version: "{{ argocd_chart_version }}"
+    release_namespace: "{{ argocd_namespace }}"
+    create_namespace: true
+    values_files:
+      - /tmp/argocd-values.yaml
+    wait: true
+    timeout: 10m0s
+  become: true
+
+- name: Clean up values file
+  ansible.builtin.file:
+    path: /tmp/argocd-values.yaml
+    state: absent
+
+- name: Wait for ArgoCD server to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: argocd-server
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_server
+  until: argocd_server.resources[0].status.readyReplicas | default(0) >= 1
+  retries: 30
+  delay: 10
+  become: true
+
+- name: Deploy root application (app of apps)
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'root-app.yaml.j2') }}"
+  become: true
+  when: argocd_root_app_enabled and argocd_repo_url | length > 0
+
+- name: Get ArgoCD admin password
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: argocd-initial-admin-secret
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_admin_secret
+  become: true
+  no_log: true
+
+- name: Display ArgoCD access info
+  ansible.builtin.debug:
+    msg: |
+      =====================================================
+      ArgoCD installed successfully!
+      =====================================================
+
+      URL: https://{{ argocd_ingress_host }}
+      Username: admin
+      Password: {{ argocd_admin_secret.resources[0].data.password | b64decode }}
+
+      To login via CLI:
+        argocd login {{ argocd_ingress_host }} --username admin --password '{{ argocd_admin_secret.resources[0].data.password | b64decode }}'
+
+      =====================================================
+  when: argocd_admin_secret.resources | length > 0
