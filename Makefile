@@ -52,12 +52,13 @@ define cleanup_inventory
 	rm -f $(TEMP_INVENTORY)
 endef
 
-.PHONY: help setup run oci-homelab networking users syncthing docker pxe edit-secrets clean
+.PHONY: help setup run oci-homelab vpn-hub networking users syncthing docker pxe edit-secrets clean
 
 help:
 	@echo "Available targets:"
 	@echo "  setup          - Install Python venv and Ansible dependencies"
 	@echo "  run            - Run main playbook (all roles)"
+	@echo "  vpn-hub        - Run VPN hub playbook (AWS Lightsail WireGuard)"
 	@echo "  oci-homelab    - Run OCI homelab playbook (WireGuard + DNS)"
 	@echo "  networking     - Run networking role only"
 	@echo "  users          - Run users role only"
@@ -122,6 +123,12 @@ oci-homelab:
 	$(decrypt_inventory)
 	@trap '$(cleanup_inventory)' EXIT; \
 	ansible-playbook -i $(TEMP_INVENTORY) playbooks/oci-homelab.yml $(LIMIT_FLAG) $(TAGS_FLAG) $(ARGS)
+
+vpn-hub:
+	$(setup_env)
+	$(decrypt_inventory)
+	@trap '$(cleanup_inventory)' EXIT; \
+	ansible-playbook -i $(TEMP_INVENTORY) playbooks/vpn-hub.yml $(LIMIT_FLAG) $(TAGS_FLAG) $(ARGS)
 
 edit-secrets:
 	@sops $(INVENTORY)
