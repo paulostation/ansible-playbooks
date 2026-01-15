@@ -1,0 +1,191 @@
+---
+# WireGuard Server Role - Main Tasks
+
+- name: Install WireGuard packages
+  ansible.builtin.apt:
+    name:
+      - wireguard
+      - wireguard-tools
+    state: present
+    update_cache: true
+  become: true
+
+- name: Ensure WireGuard directory exists
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+  become: true
+
+- name: Check if private key exists
+  ansible.builtin.stat:
+    path: /etc/wireguard/privatekey
+  register: wg_privatekey
+  become: true
+
+- name: Generate WireGuard private key
+  ansible.builtin.shell: wg genkey
+  register: wg_genkey
+  when: not wg_privatekey.stat.exists
+  become: true
+  changed_when: true
+
+- name: Save private key
+  ansible.builtin.copy:
+    content: "{{ wg_genkey.stdout }}"
+    dest: /etc/wireguard/privatekey
+    mode: '0600'
+    owner: root
+    group: root
+  when: not wg_privatekey.stat.exists
+  become: true
+  no_log: true
+
+- name: Read private key
+  ansible.builtin.slurp:
+    src: /etc/wireguard/privatekey
+  register: wg_privatekey_content
+  become: true
+  no_log: true
+
+- name: Generate public key from private key
+  ansible.builtin.shell: echo "{{ wg_privatekey_content.content | b64decode | trim }}" | wg pubkey
+  register: wg_pubkey
+  changed_when: false
+  become: true
+  no_log: true
+
+- name: Save public key
+  ansible.builtin.copy:
+    content: "{{ wg_pubkey.stdout }}"
+    dest: /etc/wireguard/publickey
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+
+- name: Display server public key
+  ansible.builtin.debug:
+    msg: "WireGuard server public key: {{ wg_pubkey.stdout }}"
+
+- name: Configure WireGuard interface
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: "/etc/wireguard/{{ wireguard_interface }}.conf"
+    mode: '0600'
+    owner: root
+    group: root
+  become: true
+  notify: Restart WireGuard
+
+- name: Enable IP forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+  become: true
+  when: wireguard_ip_forward
+
+- name: Disable IPv6
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.default.disable_ipv6
+  become: true
+
+- name: Install iptables-persistent
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+  become: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: Allow WireGuard UDP port
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: "{{ wireguard_port }}"
+    jump: ACCEPT
+    comment: "WireGuard VPN"
+  become: true
+  notify: Save iptables
+
+- name: Allow DNS from VPN network (UDP)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    source: "{{ wireguard_network }}"
+    destination_port: 53
+    jump: ACCEPT
+    comment: "DNS from VPN"
+  become: true
+  when: wireguard_dns_enabled
+  notify: Save iptables
+
+- name: Allow DNS from VPN network (TCP)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    source: "{{ wireguard_network }}"
+    destination_port: 53
+    jump: ACCEPT
+    comment: "DNS from VPN"
+  become: true
+  when: wireguard_dns_enabled
+  notify: Save iptables
+
+# FORWARD chain rules for VPN peer-to-peer traffic
+# These must come BEFORE any REJECT rules in the FORWARD chain
+
+- name: Check for REJECT rule in FORWARD chain
+  ansible.builtin.shell: |
+    iptables -L FORWARD --line-numbers -n | grep -n "REJECT" | head -1 | cut -d: -f1
+  register: forward_reject_line
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: Set insert position for FORWARD rules
+  ansible.builtin.set_fact:
+    forward_insert_pos: "{{ forward_reject_line.stdout | default('') | trim }}"
+
+- name: Allow forwarding from WireGuard interface (insert before REJECT)
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: "{{ wireguard_interface }}"
+    jump: ACCEPT
+    comment: "WireGuard forward from {{ wireguard_interface }}"
+    action: insert
+    rule_num: "{{ forward_insert_pos | int if forward_insert_pos else omit }}"
+  become: true
+  when: wireguard_ip_forward
+  notify: Save iptables
+
+- name: Allow forwarding to WireGuard interface (insert before REJECT)
+  ansible.builtin.iptables:
+    chain: FORWARD
+    out_interface: "{{ wireguard_interface }}"
+    jump: ACCEPT
+    comment: "WireGuard forward to {{ wireguard_interface }}"
+    action: insert
+    rule_num: "{{ (forward_insert_pos | int + 1) if forward_insert_pos else omit }}"
+  become: true
+  when: wireguard_ip_forward
+  notify: Save iptables
+
+- name: Enable and start WireGuard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    enabled: true
+    state: started
+  become: true

@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+# Dnsmasq Configuration for OCI Homelab
+
+# Never forward plain names (without a dot or domain part)
+domain-needed
+
+# Never forward addresses in the non-routed address spaces
+bogus-priv
+
+# Don't read /etc/resolv.conf
+no-resolv
+
+# Upstream DNS servers
+{% for dns in dnsmasq_upstream_dns %}
+server={{ dns }}
+{% endfor %}
+
+# Listen interfaces
+{% for iface in dnsmasq_listen_interfaces %}
+interface={{ iface }}
+{% endfor %}
+
+# Bind only to interfaces we're listening on
+bind-interfaces
+
+# Local domain
+local=/{{ dnsmasq_domain }}/
+domain={{ dnsmasq_domain }}
+expand-hosts
+
+# Additional hosts file
+addn-hosts=/etc/hosts.local
+
+# Cache size
+cache-size={{ dnsmasq_cache_size }}
+
+{% if dnsmasq_log_queries %}
+# Log all DNS queries
+log-queries
+{% endif %}
+
+# Don't use /etc/hosts
+no-hosts

@@ -1,0 +1,127 @@
+---
+# WireGuard Client Role - Tasks
+
+- name: Install WireGuard
+  ansible.builtin.apt:
+    name: wireguard
+    state: present
+    update_cache: true
+  become: true
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - wireguard_server_endpoint | length > 0
+      - wireguard_server_pubkey | length > 0
+    fail_msg: "wireguard_server_endpoint and wireguard_server_pubkey must be set"
+
+- name: Ensure WireGuard directory exists
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+  become: true
+
+- name: Check if private key exists
+  ansible.builtin.stat:
+    path: /etc/wireguard/privatekey
+  register: wg_privkey
+
+- name: Generate WireGuard keys
+  when: not wg_privkey.stat.exists
+  block:
+    - name: Generate private key
+      ansible.builtin.shell: wg genkey
+      register: wg_private_key
+      changed_when: true
+
+    - name: Save private key
+      ansible.builtin.copy:
+        content: "{{ wg_private_key.stdout }}"
+        dest: /etc/wireguard/privatekey
+        mode: '0600'
+        owner: root
+        group: root
+      become: true
+      no_log: true
+
+    - name: Generate public key
+      ansible.builtin.shell: echo "{{ wg_private_key.stdout }}" | wg pubkey
+      register: wg_public_key
+      changed_when: false
+
+    - name: Save public key
+      ansible.builtin.copy:
+        content: "{{ wg_public_key.stdout }}"
+        dest: /etc/wireguard/publickey
+        mode: '0644'
+        owner: root
+        group: root
+      become: true
+
+- name: Read existing private key
+  ansible.builtin.slurp:
+    src: /etc/wireguard/privatekey
+  register: wg_privkey_content
+  become: true
+  no_log: true
+
+- name: Read existing public key
+  ansible.builtin.slurp:
+    src: /etc/wireguard/publickey
+  register: wg_pubkey_content
+  become: true
+  ignore_errors: true
+
+- name: Generate public key if missing
+  when: wg_pubkey_content is failed
+  block:
+    - name: Generate public key from private
+      ansible.builtin.shell: echo "{{ wg_privkey_content.content | b64decode | trim }}" | wg pubkey
+      register: wg_public_key_gen
+      changed_when: false
+
+    - name: Save public key
+      ansible.builtin.copy:
+        content: "{{ wg_public_key_gen.stdout }}"
+        dest: /etc/wireguard/publickey
+        mode: '0644'
+      become: true
+
+- name: Read public key for display
+  ansible.builtin.slurp:
+    src: /etc/wireguard/publickey
+  register: wg_pubkey_final
+  become: true
+
+- name: Deploy WireGuard config
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: "/etc/wireguard/{{ wireguard_interface }}.conf"
+    mode: '0600'
+    owner: root
+    group: root
+  become: true
+  notify: Restart WireGuard
+
+- name: Enable and start WireGuard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    enabled: true
+    state: started
+  become: true
+
+- name: Display client public key
+  ansible.builtin.debug:
+    msg: |
+      WireGuard client configured!
+
+      Public Key: {{ wg_pubkey_final.content | b64decode | trim }}
+      Client IP: {{ wireguard_client_ip }}
+
+      Add this peer to the WireGuard server:
+        [Peer]
+        PublicKey = {{ wg_pubkey_final.content | b64decode | trim }}
+        AllowedIPs = {{ wireguard_client_ip }}/32

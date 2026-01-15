@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# WireGuard Client Configuration
+
+[Interface]
+PrivateKey = {{ wg_privkey_content.content | b64decode | trim }}
+Address = {{ wireguard_client_ip }}/24
+DNS = {{ wireguard_dns }}
+
+[Peer]
+PublicKey = {{ wireguard_server_pubkey }}
+Endpoint = {{ wireguard_server_endpoint }}
+AllowedIPs = {{ wireguard_allowed_ips }}
+PersistentKeepalive = {{ wireguard_keepalive }}

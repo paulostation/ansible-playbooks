@@ -1,0 +1,8 @@
+---
+# OCI Dnsmasq Role - Handlers
+
+- name: Restart dnsmasq
+  ansible.builtin.systemd:
+    name: dnsmasq
+    state: restarted
+  become: true
