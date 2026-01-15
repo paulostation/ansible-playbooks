@@ -1,0 +1,67 @@
+---
+# Stremio RPi - Main Playbook
+# Configures Pi 5 with WireGuard client, k3s, ArgoCD, and Syncthing
+
+- name: Configure Stremio RPi (Pi 5)
+  hosts: stremio-rpi
+  become: true
+  gather_facts: true
+
+  vars:
+    # WireGuard client configuration
+    wireguard_client_ip: "100.64.7.2"
+    wireguard_server_endpoint: "{{ oci_public_ip }}:51820"
+    wireguard_server_pubkey: "{{ oci_wireguard_pubkey }}"
+
+    # ArgoCD configuration
+    argocd_ingress_host: "argocd.prod.paulo.software.vpn"
+
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Load AGE private key for SOPS
+      ansible.builtin.set_fact:
+        argocd_age_private_key: "{{ lookup('file', playbook_dir + '/../secrets/age-key.txt') }}"
+      no_log: true
+      ignore_errors: true
+
+  roles:
+    - role: wireguard_client
+      tags: [wireguard, vpn]
+
+    - role: k3s
+      tags: [k3s, kubernetes]
+
+    - role: argocd
+      tags: [argocd, gitops]
+
+    - role: syncthing
+      tags: [syncthing, sync]
+
+  post_tasks:
+    - name: Display connection info
+      ansible.builtin.debug:
+        msg: |
+          =====================================================
+          Stremio RPi (Pi 5) configured successfully!
+          =====================================================
+
+          WireGuard:
+            Client IP: {{ wireguard_client_ip }}
+            Connected to: {{ wireguard_server_endpoint }}
+
+          k3s:
+            Kubeconfig: ~/.kube/stremio-rpi.yaml
+            API Server: https://{{ wireguard_client_ip }}:6443
+
+          ArgoCD:
+            URL: https://{{ argocd_ingress_host }}
+            Get password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+          Syncthing:
+            Web UI: http://{{ wireguard_client_ip }}:8384
+
+          =====================================================
