@@ -9,6 +9,7 @@ all:
                     desktop_wireguard_pubkey: ENC[AES256_GCM,data:8rfL/U1ZddcEIKw0MPIFyU8I2bixzprWpw8C/yL+GelfYUscpRaTSQeIJh4=,iv:BSgmk1H3nHd8Y8Bfag+tw48/WL0yP0eDnpdmlyf8j9Q=,tag:j2VkdS1AR6HeVloKrhYXHg==,type:str]
                     rpi_wireguard_pubkey: ENC[AES256_GCM,data:GUvobkI4As+G2VvNQU6Y23OkHDzs7pGMB9mntXssgjS6E3qHZMR+BkJgoFI=,iv:O8o7YKLUg5LKM7jjlX4/dEX83olFrcHd1WGxersFPKc=,tag:uocH+TzBVzxvhsS4qqtb3A==,type:str]
                     phone_wireguard_pubkey: ENC[AES256_GCM,data:4hlcTy/qfTzBtrZ6xIbPQTe0XkOxiJ+s5oURef1Nus4vEaOzy6+0399JsJs=,iv:o3GMWDYDD9KtMGKbn7CfSQzvMe2Z0KhOxMysb6SlLI4=,tag:dGwax2xNK5Bwsm6/CG3HAg==,type:str]
+                    asus_tuf_wireguard_pubkey: ENC[AES256_GCM,data:+NNmTcDqZSU9duPKkIhWJJZ7l82KY6BG72f0F/Ao+Tp8sXPJVNXAslJzv/Q=,iv:iNemyg8rHDCIOwGBnEJE/valzkfz3ztomDbvKuUQRkc=,tag:Fp0Wc1JG9I8qRFK26GTHzg==,type:str]
         local:
             hosts:
                 localhost:
@@ -214,8 +215,8 @@ sops:
             NDlHemEvOHpxRXUvL2JTckcvTlNtaE0Kx5ib71TRu8IUxSpS1FTUsmEAuqo5RnT0
             eMY5q/QMA6vTUck9XGzm+OJI6dnNbwdCrg2YHifaq/DdHSELL4Dhpg==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2026-01-15T03:36:12Z"
-    mac: ENC[AES256_GCM,data:4eJ4Wwt71TnERm2L8o7FLgcjOr9z5hqHKAUdjywVkvlerAYIlG07zwHWeTqdBx/k4QCVowdtx0/1KkANsj0XyYsJtQEsdqQ5CxIpgBCSNmSFqdBrLvMFjmrIbL4u1/IiQCg2u5fPEWzWa5MTA/wHT+73YEtwE78maYz4DgM09yA=,iv:ohrnLppBPpenMRuiUHmj7mJqDHQqjfXOUE/hZ6t1iO8=,tag:V+HF3Blp4oRNnzu65904GA==,type:str]
+    lastmodified: "2026-01-15T22:34:36Z"
+    mac: ENC[AES256_GCM,data:awfC0PCqa6nhOne3Be70Hghjf69DRR2nqBEgqCY4IouYEoE0lIwGKtsMsTzoG8JB474siiZcNlnAJG4u8+VyL2uJngOZnR11eZleOAtsqR/Z0ObL7syEZSqKmppg3GvtpL/68MfcP+btDHAHxUfaHgr+Yk7W3bJyvhTinAHNblA=,iv:a2qw7FdTU36HXAy2ZQecPdxfQeVFvvxq+1KJ8fK9CZE=,tag:2v1ESMzX53qc8pI1NiGvyw==,type:str]
     pgp: []
     unencrypted_suffix: _unencrypted
     version: 3.9.1
