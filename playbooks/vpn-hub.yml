@@ -19,6 +19,9 @@
       - name: phone
         public_key: "{{ phone_wireguard_pubkey }}"
         allowed_ips: "100.64.7.4/32"
+      - name: asus-tuf
+        public_key: "{{ asus_tuf_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.6/32"
 
   pre_tasks:
     - name: Wait for cloud-init to complete
@@ -58,6 +61,7 @@
             - Desktop: 100.64.7.3
             - Pi 5: 100.64.7.2
             - Phone: 100.64.7.4
+            - ASUS TUF: 100.64.7.6
 
           Server Public Key (for client configs):
             Run: sudo cat /etc/wireguard/publickey
