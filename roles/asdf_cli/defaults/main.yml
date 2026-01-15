@@ -23,8 +23,7 @@ asdf_plugins:
     version: "4.44.1"
 
 # Extra build/runtime deps often needed by plugins
-# Debian/Ubuntu packages
-asdf_prereqs_debian:
+asdf_prereqs:
   - git
   - curl
   - tar
@@ -34,18 +33,6 @@ asdf_prereqs_debian:
   - libssl-dev
   - libreadline-dev
   - zlib1g-dev
-
-# Arch Linux packages
-asdf_prereqs_arch:
-  - git
-  - curl
-  - tar
-  - gzip
-  - ca-certificates
-  - base-devel
-  - openssl
-  - readline
-  - zlib
 
 # Update apt cache before installing prereqs
 asdf_update_cache: true

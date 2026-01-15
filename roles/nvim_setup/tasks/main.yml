@@ -1,15 +1,13 @@
 
 # roles/nvim_setup/tasks/main.yml
 
-# Ubuntu/Debian installation
-- name: Install Neovim >= 0.10.0 from PPA (Debian/Ubuntu)
+- name: Install Neovim >= 0.10.0 from PPA
   apt_repository:
     repo: ppa:neovim-ppa/unstable
     state: present
   become: true
-  when: ansible_os_family == 'Debian'
 
-- name: Install base packages including Neovim (Debian/Ubuntu)
+- name: Install base packages including Neovim
   apt:
     name:
       - neovim
@@ -20,6 +18,7 @@
       - nodejs
       - npm
       - unzip
+      - pipx
       - ripgrep
       - fd-find
       - fzf
@@ -31,32 +30,6 @@
     state: present
     update_cache: yes
   become: true
-  when: ansible_os_family == 'Debian'
-
-# Arch Linux installation
-- name: Install base packages including Neovim (Arch Linux)
-  community.general.pacman:
-    name:
-      - neovim
-      - curl
-      - git
-      - python
-      - python-pip
-      - nodejs
-      - npm
-      - unzip
-      - ripgrep
-      - fd
-      - fzf
-      - base-devel
-      - readline
-      - ncurses
-      - openssl
-      - zlib
-    state: present
-    update_cache: yes
-  become: true
-  when: ansible_os_family == 'Archlinux'
 
 - name: Install lazygit from GitHub (binary release)
   become: true
@@ -79,27 +52,28 @@
   ignore_errors: true
   become: true
 
-# Use virtualenv instead of pipx for hererocks (avoids pipx version issues)
-- name: Create virtualenv for hererocks
-  become: false
-  command: python3 -m venv {{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv
+- name: Ensure pipx path is available in shell
+  shell: pipx ensurepath
   args:
-    creates: "{{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv/bin/python"
+    executable: /bin/bash
 
-- name: Install hererocks in virtualenv
-  become: false
-  pip:
-    name: hererocks
-    virtualenv: "{{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv"
-    state: present
+- name: Install hererocks using pipx
+  shell: pipx install hererocks || true
+  args:
+    executable: /bin/bash
+
+#- name: Create LuaRocks environment with hererocks (with luarocks)
+#  shell: |
+#    set -euxo pipefail
+#    pipx run hererocks ~/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest --luarocks
+#  args:
+#    creates: ~/.local/share/nvim/lazy-rocks/hererocks/bin/activate
 
 - name: Create LuaRocks environment with hererocks
-  become: false
   shell: |
-    {{ ansible_env.HOME }}/.local/share/nvim/hererocks-venv/bin/hererocks \
-      {{ ansible_env.HOME }}/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest
+    pipx run hererocks ~/.local/share/nvim/lazy-rocks/hererocks -l 5.1 -r latest
   args:
-    creates: "{{ ansible_env.HOME }}/.local/share/nvim/lazy-rocks/hererocks/bin/luarocks"
+    creates: ~/.local/share/nvim/lazy-rocks/hererocks/bin/luarocks
 
 - name: Ensure hererocks Lua binary exists
   stat:
@@ -129,29 +103,19 @@
     state: present
     insertafter: EOF
 
-- name: Check if nvim config directory exists
-  stat:
-    path: "~/.config/nvim"
-  register: nvim_config_dir
-
-- name: Check if nvim config is a git repo
-  stat:
-    path: "~/.config/nvim/.git"
-  register: nvim_config_git
-
-- name: Backup existing nvim config (if exists and not a git repo)
-  shell: mv ~/.config/nvim ~/.config/nvim.bak.$(date +%Y_%m_%d_%H_%M_%S)
-  when:
-    - nvim_config_source == "git"
-    - nvim_config_dir.stat.exists
-    - not nvim_config_git.stat.exists
+- name: Create Neovim config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  loop:
+    - "~/.config/nvim"
 
 - name: Clone Neovim config from Git
   git:
     repo: "{{ nvim_git_repo }}"
     dest: "~/.config/nvim"
     version: "HEAD"
-    force: no
   when: nvim_config_source == "git"
 
 - name: Install Python Neovim support

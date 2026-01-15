@@ -1,33 +1,15 @@
 ---
-- name: Ensure apt cache is updated (Debian/Ubuntu)
+- name: Ensure apt cache is updated
   become: true
   ansible.builtin.apt:
     update_cache: true
-  when:
-    - asdf_update_cache
-    - ansible_os_family == 'Debian'
+  when: asdf_update_cache
 
-- name: Ensure pacman cache is updated (Arch Linux)
+- name: Install prerequisites
   become: true
-  community.general.pacman:
-    update_cache: true
-  when:
-    - asdf_update_cache
-    - ansible_os_family == 'Archlinux'
-
-- name: Install prerequisites (Debian/Ubuntu)
-  become: true
-  ansible.builtin.apt:
-    name: "{{ asdf_prereqs_debian }}"
+  ansible.builtin.package:
+    name: "{{ asdf_prereqs }}"
     state: present
-  when: ansible_os_family == 'Debian'
-
-- name: Install prerequisites (Arch Linux)
-  become: true
-  community.general.pacman:
-    name: "{{ asdf_prereqs_arch }}"
-    state: present
-  when: ansible_os_family == 'Archlinux'
 
 - name: Ensure asdf parent directory exists
   become: true
@@ -60,32 +42,27 @@
   when: asdf_shell == "zsh"
   become: true
   become_user: "{{ asdf_user }}"
-  ansible.builtin.blockinfile:
+  ansible.builtin.lineinfile:
     path: "/home/{{ asdf_user }}/.zshrc"
     create: true
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - asdf"
-    block: |
-      # asdf version manager
-      export ASDF_DIR="{{ asdf_dir }}"
+    line: |
+      # asdf
       . "{{ asdf_dir }}/asdf.sh"
-      # asdf completions
-      fpath=({{ asdf_dir }}/completions $fpath)
-      autoload -Uz compinit && compinit
+      . "{{ asdf_dir }}/completions/asdf.zsh"
+    insertafter: EOF
   register: zshrc_added
 
 - name: Add asdf init to .bashrc (if shell is bash)
   when: asdf_shell == "bash"
   become: true
   become_user: "{{ asdf_user }}"
-  ansible.builtin.blockinfile:
+  ansible.builtin.lineinfile:
     path: "/home/{{ asdf_user }}/.bashrc"
     create: true
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - asdf"
-    block: |
-      # asdf version manager
-      export ASDF_DIR="{{ asdf_dir }}"
+    line: |
+      # asdf
       . "{{ asdf_dir }}/asdf.sh"
-      . "{{ asdf_dir }}/completions/asdf.bash"
+    insertafter: EOF
   register: bashrc_added
 
 # Remove (or keep) the previous .zshrc/.bashrc "source" usage for runtime.

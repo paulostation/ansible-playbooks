@@ -1,10 +1,4 @@
 syncthing_is_an_upgrade: no
-
-# Use systemd --user service (recommended for workstations)
-# When true: runs as current user via systemd user service
-# When false: runs as dedicated syncthing user via system service
-syncthing_user_mode: "{{ ansible_os_family == 'Archlinux' }}"
-
 devices_to_add:
   - device_id: KLXUWIC-5GIZH7B-L4ZE347-V5BBEY5-CNSVPMD-5PIGYP5-6EYWXIR-S7IUIAF
     name: PCdoB
