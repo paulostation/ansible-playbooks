@@ -1,0 +1,12 @@
+---
+# WireGuard Server Role - Handlers
+
+- name: Restart WireGuard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: restarted
+  become: true
+
+- name: Save iptables
+  ansible.builtin.command: netfilter-persistent save
+  become: true

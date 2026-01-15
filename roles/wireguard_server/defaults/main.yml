@@ -1,0 +1,27 @@
+---
+# WireGuard Server Role - Defaults
+
+# Network configuration
+wireguard_interface: wg0
+wireguard_port: 51820
+wireguard_network: "100.64.7.0/24"
+wireguard_server_ip: "100.64.7.1"
+
+# DNS settings (server will provide DNS to clients)
+wireguard_dns_enabled: true
+
+# Persistent keepalive for NAT traversal (seconds, 0 to disable)
+wireguard_keepalive: 25
+
+# Enable IP forwarding
+wireguard_ip_forward: true
+
+# Peers list (to be provided in host_vars or playbook)
+# wireguard_peers:
+#   - name: desktop
+#     public_key: "xxx..."
+#     allowed_ips: "100.64.7.2/32"
+#   - name: laptop
+#     public_key: "yyy..."
+#     allowed_ips: "100.64.7.3/32"
+wireguard_peers: []

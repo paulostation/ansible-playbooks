@@ -1,0 +1,65 @@
+---
+# VPN Hub - Main Playbook
+# Configures AWS Lightsail instance as WireGuard VPN hub and DNS server
+
+- name: Configure VPN Hub
+  hosts: aws_vpn_hub
+  become: true
+  gather_facts: true
+
+  vars:
+    # WireGuard peers
+    wireguard_peers:
+      - name: desktop
+        public_key: "{{ desktop_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.3/32"
+      - name: rpi
+        public_key: "{{ rpi_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.2/32"
+      - name: phone
+        public_key: "{{ phone_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.4/32"
+
+  pre_tasks:
+    - name: Wait for cloud-init to complete
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      ignore_errors: true
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - role: wireguard_server
+      tags: [wireguard, vpn]
+
+    - role: oci_dnsmasq
+      tags: [dns, dnsmasq]
+
+  post_tasks:
+    - name: Display connection info
+      ansible.builtin.debug:
+        msg: |
+          =====================================================
+          VPN Hub configured successfully!
+          =====================================================
+
+          WireGuard Hub:
+            Server IP: 100.64.7.1
+            Endpoint: vpn.paulo.software:51820 ({{ ansible_host }})
+
+          DNS:
+            Domain: prod.paulo.software.vpn
+            Resolver: 100.64.7.1
+
+          Peers to configure:
+            - Desktop: 100.64.7.3
+            - Pi 5: 100.64.7.2
+            - Phone: 100.64.7.4
+
+          Server Public Key (for client configs):
+            Run: sudo cat /etc/wireguard/publickey
+
+          =====================================================

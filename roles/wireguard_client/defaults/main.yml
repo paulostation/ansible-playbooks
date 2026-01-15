@@ -1,0 +1,24 @@
+---
+# WireGuard Client Role - Defaults
+
+# WireGuard interface
+wireguard_interface: wg0
+
+# Client IP within VPN
+wireguard_client_ip: "100.64.7.2"
+
+# Server endpoint (public IP:port)
+wireguard_server_endpoint: ""  # Required: set in host_vars
+
+# Server public key
+wireguard_server_pubkey: ""  # Required: set in host_vars
+
+# Allowed IPs (what to route through VPN)
+# Default: only VPN network (split tunnel)
+wireguard_allowed_ips: "100.64.7.0/24"
+
+# DNS server (VPN's DNS)
+wireguard_dns: "100.64.7.1"
+
+# Persistent keepalive for NAT traversal
+wireguard_keepalive: 25
