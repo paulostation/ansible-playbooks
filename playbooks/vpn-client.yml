@@ -7,7 +7,7 @@
 #   make vpn-client HOST=asus-tuf
 
 - name: Configure VPN Client
-  hosts: "{{ target_hosts | default('vpn_clients') }}"
+  hosts: "{{ target_hosts | default('all') }}"
   become: true
   gather_facts: true
 
