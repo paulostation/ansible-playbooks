@@ -56,7 +56,7 @@ define run_with_inventory
 	trap 'rm -f $(TEMP_INVENTORY)' EXIT &&
 endef
 
-.PHONY: help setup setup-sops run dev nvim vpn-hub networking users syncthing docker pxe edit-secrets encrypt-hosts decrypt clean
+.PHONY: help setup setup-sops run dev nvim vpn-hub vpn-client networking users syncthing docker pxe edit-secrets encrypt-hosts decrypt clean
 
 help:
 	@echo "Available targets:"
@@ -66,6 +66,7 @@ help:
 	@echo "  dev            - Run dev_utils playbook"
 	@echo "  nvim           - Run neovim setup playbook"
 	@echo "  vpn-hub        - Run VPN hub playbook (WireGuard + DNS)"
+	@echo "  vpn-client     - Run VPN client playbook (configure client)"
 	@echo "  networking     - Run networking role only"
 	@echo "  users          - Run users role only"
 	@echo "  syncthing      - Run syncthing role only"
@@ -119,6 +120,10 @@ nvim:
 vpn-hub:
 	$(run_with_inventory) \
 	ansible-playbook -i $(TEMP_INVENTORY) playbooks/vpn-hub.yml $(LIMIT_FLAG) $(TAGS_FLAG) $(ARGS)
+
+vpn-client:
+	$(run_with_inventory) \
+	ansible-playbook -i $(TEMP_INVENTORY) playbooks/vpn-client.yml $(LIMIT_FLAG) $(TAGS_FLAG) $(ARGS)
 
 # Role-specific targets
 networking:
