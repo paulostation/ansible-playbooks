@@ -39,7 +39,7 @@
     recurse: yes
   register: initrd_files
 
-- name: Copy kernel from ISO
+- name: Copy kernel from ISO to TFTP
   copy:
     src: "{{ kernel_files.files[0].path }}"
     dest: "{{ tftp_root }}/{{ boot_image.value.kernel }}"
@@ -47,10 +47,26 @@
     mode: '0644'
   when: kernel_files.files | length > 0
 
-- name: Copy initrd from ISO
+- name: Copy initrd from ISO to TFTP
   copy:
     src: "{{ initrd_files.files[0].path }}"
     dest: "{{ tftp_root }}/{{ boot_image.value.initrd }}"
+    remote_src: yes
+    mode: '0644'
+  when: initrd_files.files | length > 0
+
+- name: Copy kernel from ISO to HTTP
+  copy:
+    src: "{{ kernel_files.files[0].path }}"
+    dest: "{{ http_root }}/{{ boot_image.value.kernel }}"
+    remote_src: yes
+    mode: '0644'
+  when: kernel_files.files | length > 0
+
+- name: Copy initrd from ISO to HTTP
+  copy:
+    src: "{{ initrd_files.files[0].path }}"
+    dest: "{{ http_root }}/{{ boot_image.value.initrd }}"
     remote_src: yes
     mode: '0644'
   when: initrd_files.files | length > 0

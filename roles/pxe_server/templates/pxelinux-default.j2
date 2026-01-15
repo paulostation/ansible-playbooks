@@ -24,8 +24,8 @@ LABEL {{ name }}
 {% if pxe_menu_default == name %}
     MENU DEFAULT
 {% endif %}
-    KERNEL {{ image.kernel }}
-    APPEND initrd={{ image.initrd }} {{ image.append }}
+    KERNEL http://{{ pxe_server_ip }}/{{ image.kernel }}
+    APPEND initrd=http://{{ pxe_server_ip }}/{{ image.initrd }} {{ image.append }}
 
 {% endif %}
 {% endfor %}
