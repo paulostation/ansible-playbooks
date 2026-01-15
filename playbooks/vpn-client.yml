@@ -1,0 +1,51 @@
+---
+# VPN Client Configuration Playbook
+# Configures WireGuard client on hosts to connect to VPN hub
+#
+# Usage:
+#   make vpn-client HOST=stremio-rpi
+#   make vpn-client HOST=asus-tuf
+
+- name: Configure VPN Client
+  hosts: "{{ target_hosts | default('vpn_clients') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    # VPN Hub details (can be overridden per host)
+    wireguard_server_endpoint: "vpn.paulo.software:51820"
+    wireguard_server_pubkey: "BXvA2JxzjDz8CiYWQgc+jnPlf/8lpsfTHTNR6LMPv0E="
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - wireguard_client_ip is defined
+          - wireguard_client_ip | length > 0
+        fail_msg: "wireguard_client_ip must be defined in host_vars"
+
+  roles:
+    - role: wireguard_client
+      tags: [wireguard, vpn]
+
+  post_tasks:
+    - name: Display client connection info
+      ansible.builtin.debug:
+        msg: |
+          =====================================================
+          VPN Client configured successfully!
+          =====================================================
+
+          Client: {{ inventory_hostname }}
+          VPN IP: {{ wireguard_client_ip }}
+
+          Server Endpoint: {{ wireguard_server_endpoint }}
+          Server Public Key: {{ wireguard_server_pubkey }}
+
+          To check status:
+            sudo wg show
+
+          To test connectivity:
+            ping 100.64.7.1  (VPN hub)
+
+          =====================================================
