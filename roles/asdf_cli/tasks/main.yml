@@ -99,7 +99,7 @@
     set -euo pipefail
     . "{{ asdf_dir }}/asdf.sh"
     if ! asdf plugin list | grep -qx "{{ item.name }}"; then
-      asdf plugin add "{{ item.name }}"
+      asdf plugin add "{{ item.name }}" {{ item.repo_url | default('') }}
     fi
   args:
     executable: /bin/bash
