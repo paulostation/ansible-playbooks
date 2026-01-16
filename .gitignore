@@ -7,8 +7,8 @@ roles/geerlingguy.*/
 # Decrypted secrets (temp files)
 /tmp/ansible_inventory_*.yml
 
-# Unencrypted inventory (use hosts.sops.yml instead)
-hosts.yml
+# Decrypted inventory temp files
+# (hosts.yml is now the plain inventory and should be tracked)
 
 # SOPS age keys (never commit these!)
 *.age
