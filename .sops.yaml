@@ -6,17 +6,12 @@
 #   - AWS credentials with KMS decrypt permission
 
 creation_rules:
-  # Match hosts.yml for encryption
-  - path_regex: hosts\.yml$
-    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
+  # Match any .sops.yml file in host_vars or group_vars
+  - path_regex: .*(host_vars|group_vars)/.*\.sops\.(yml|yaml)$
+    age: age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk
     kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
 
-  # Match any .sops.yml or .sops.yaml file (for editing/decryption)
+  # Match any .sops.yml or .sops.yaml file (fallback)
   - path_regex: .*\.sops\.(yml|yaml)$
-    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
-    kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
-
-  # Match any yaml file (fallback - be careful with this)
-  - path_regex: .*\.(yml|yaml)$
-    age: age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
+    age: age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk
     kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
