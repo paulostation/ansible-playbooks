@@ -1,12 +1,23 @@
 ---
 # WireGuard Client Role - Tasks
 
-- name: Install WireGuard
+- name: Install WireGuard (Debian/Ubuntu)
   ansible.builtin.apt:
     name: wireguard
     state: present
     update_cache: true
   become: true
+  when: ansible_os_family == "Debian"
+
+- name: Install WireGuard (Arch)
+  community.general.pacman:
+    name:
+      - wireguard-tools
+      - openresolv
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_os_family == "Archlinux"
 
 - name: Validate required variables
   ansible.builtin.assert:
@@ -105,17 +116,10 @@
   become: true
   notify: Restart WireGuard
 
-- name: Enable and start WireGuard
-  ansible.builtin.systemd:
-    name: "wg-quick@{{ wireguard_interface }}"
-    enabled: true
-    state: started
-  become: true
-
 - name: Display client public key
   ansible.builtin.debug:
     msg: |
-      WireGuard client configured!
+      WireGuard client keys ready!
 
       Public Key: {{ wg_pubkey_final.content | b64decode | trim }}
       Client IP: {{ wireguard_client_ip }}
@@ -124,3 +128,16 @@
         [Peer]
         PublicKey = {{ wg_pubkey_final.content | b64decode | trim }}
         AllowedIPs = {{ wireguard_client_ip }}/32
+
+- name: Initialize resolvconf (Arch)
+  ansible.builtin.command: resolvconf -u
+  become: true
+  changed_when: false
+  when: ansible_os_family == "Archlinux"
+
+- name: Enable and start WireGuard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    enabled: true
+    state: started
+  become: true
