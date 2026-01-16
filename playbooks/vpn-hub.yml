@@ -22,6 +22,9 @@
       - name: asus-tuf
         public_key: "{{ asus_tuf_wireguard_pubkey }}"
         allowed_ips: "100.64.7.6/32"
+      - name: omarchy-pc-do-b
+        public_key: "{{ omarchy_pc_do_b_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.7/32"
 
   pre_tasks:
     - name: Wait for cloud-init to complete
