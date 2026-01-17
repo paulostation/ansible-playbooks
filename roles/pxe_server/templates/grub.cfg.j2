@@ -6,19 +6,28 @@ set default=0
 
 {% for name, image in pxe_boot_images.items() if image.enabled | default(false) %}
 {% if image.nfs_boot | default(false) and nfs_enabled | default(false) %}
-menuentry "{{ image.label }} (NFS - low RAM)" {
-    linux (http,{{ pxe_server_ip }})/{{ image.kernel }} {{ image.append | default('') }} archiso_nfs_srv={{ pxe_server_ip }}:{{ http_root }}/{{ name }} ip=dhcp
-    initrd (http,{{ pxe_server_ip }})/{{ image.initrd }}
+menuentry "{{ image.label }} (NFS - fast boot)" {
+    set root=(http,{{ pxe_server_ip }})
+    linux /{{ image.kernel }} {{ image.append | default('') }} archiso_nfs_srv={{ pxe_server_ip }}:{{ http_root }}/{{ name }} ip=dhcp copytoram=n
+    initrd /{{ image.initrd }}
 }
 
-menuentry "{{ image.label }} (HTTP - high RAM)" {
-    linux (http,{{ pxe_server_ip }})/{{ image.kernel }} {{ image.append | default('') }} ip=dhcp
-    initrd (http,{{ pxe_server_ip }})/{{ image.initrd }}
+menuentry "{{ image.label }} (NFS - copy to RAM)" {
+    set root=(http,{{ pxe_server_ip }})
+    linux /{{ image.kernel }} {{ image.append | default('') }} archiso_nfs_srv={{ pxe_server_ip }}:{{ http_root }}/{{ name }} ip=dhcp copytoram=y
+    initrd /{{ image.initrd }}
+}
+
+menuentry "{{ image.label }} (HTTP - copy to RAM)" {
+    set root=(http,{{ pxe_server_ip }})
+    linux /{{ image.kernel }} {{ image.append | default('') }} ip=dhcp copytoram=y
+    initrd /{{ image.initrd }}
 }
 {% else %}
 menuentry "{{ image.label }}" {
-    linux (http,{{ pxe_server_ip }})/{{ image.kernel }} {{ image.append | default('') }} ip=dhcp
-    initrd (http,{{ pxe_server_ip }})/{{ image.initrd }}
+    set root=(http,{{ pxe_server_ip }})
+    linux /{{ image.kernel }} {{ image.append | default('') }} ip=dhcp
+    initrd /{{ image.initrd }}
 }
 {% endif %}
 
