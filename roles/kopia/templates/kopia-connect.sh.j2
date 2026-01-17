@@ -1,14 +1,25 @@
 #!/bin/bash
 set -e
 
-export SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }}
+CONFIG_FILE="{{ kopia_config_dir }}/kopia.sops.yaml"
 
-# Read values and export KOPIA_PASSWORD so kopia picks it up from env
-export KOPIA_PASSWORD=$(sops -d --extract '["kopia"]["repository_password"]' {{ kopia_config_dir }}/kopia.yaml)
-ACCESS_KEY=$(sops -d --extract '["kopia"]["access_key_id"]' {{ kopia_config_dir }}/kopia.yaml)
-SECRET_KEY=$(sops -d --extract '["kopia"]["secret_access_key"]' {{ kopia_config_dir }}/kopia.yaml)
-ENDPOINT=$(sops -d --extract '["kopia"]["endpoint"]' {{ kopia_config_dir }}/kopia.yaml)
-BUCKET=$(sops -d --extract '["kopia"]["bucket"]' {{ kopia_config_dir }}/kopia.yaml)
+# SOPS decryption setup
+{% if kopia_sops_method == "kms" %}
+# Using AWS KMS for SOPS decryption
+{% if kopia_aws_profile %}
+export AWS_PROFILE={{ kopia_aws_profile }}
+{% endif %}
+{% else %}
+# Using age key for SOPS decryption
+export SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }}
+{% endif %}
+
+# Read values from SOPS-encrypted config file
+export KOPIA_PASSWORD=$(sops -d --extract '["kopia"]["repository_password"]' "$CONFIG_FILE")
+ACCESS_KEY=$(sops -d --extract '["kopia"]["access_key_id"]' "$CONFIG_FILE")
+SECRET_KEY=$(sops -d --extract '["kopia"]["secret_access_key"]' "$CONFIG_FILE")
+ENDPOINT=$(sops -d --extract '["kopia"]["endpoint"]' "$CONFIG_FILE")
+BUCKET=$(sops -d --extract '["kopia"]["bucket"]' "$CONFIG_FILE")
 
 echo "Connecting to kopia repository..."
 echo "  Endpoint: $ENDPOINT"
