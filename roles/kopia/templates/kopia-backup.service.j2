@@ -1,0 +1,15 @@
+[Unit]
+Description=Kopia Backup Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{ ansible_user_id }}
+Environment="SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }}"
+ExecStart=/bin/bash -c 'source {{ kopia_config_dir }}/kopia-connect.sh && {% for path in kopia_backup_paths %}kopia snapshot create {{ path }} && {% endfor %}true'
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

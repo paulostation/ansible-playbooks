@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+
+export SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }}
+
+# Read values and export KOPIA_PASSWORD so kopia picks it up from env
+export KOPIA_PASSWORD=$(sops -d --extract '["kopia"]["repository_password"]' {{ kopia_config_dir }}/kopia.yaml)
+ACCESS_KEY=$(sops -d --extract '["kopia"]["access_key_id"]' {{ kopia_config_dir }}/kopia.yaml)
+SECRET_KEY=$(sops -d --extract '["kopia"]["secret_access_key"]' {{ kopia_config_dir }}/kopia.yaml)
+ENDPOINT=$(sops -d --extract '["kopia"]["endpoint"]' {{ kopia_config_dir }}/kopia.yaml)
+BUCKET=$(sops -d --extract '["kopia"]["bucket"]' {{ kopia_config_dir }}/kopia.yaml)
+
+echo "Connecting to kopia repository..."
+echo "  Endpoint: $ENDPOINT"
+echo "  Bucket: $BUCKET"
+
+# Use env var for password instead of --password flag
+kopia repository connect s3 \
+  --bucket="$BUCKET" \
+  --endpoint="$ENDPOINT" \
+  --access-key="$ACCESS_KEY" \
+  --secret-access-key="$SECRET_KEY" \
+  "$@"
