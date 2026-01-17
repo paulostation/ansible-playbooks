@@ -1,10 +1,23 @@
 ---
 # Kopia backup client configuration
 # Secrets are stored in group_vars/all/kopia.sops.yml
+# KMS ARN is read from the project's .sops.yaml
 
 kopia_version: "0.17.0"
 kopia_config_dir: "{{ ansible_env.HOME }}/.secrets"
+
+# SOPS encryption/decryption method: "age" or "kms"
+# - age: uses age key for encryption/decryption
+# - kms: uses AWS KMS via AWS credentials/profile
+kopia_sops_method: "kms"
+
+# For age method: path to age private key file (for decryption)
 kopia_sops_age_key_file: "{{ ansible_env.HOME }}/.config/sops/age/keys.txt"
+# For age method: age public key (for encryption)
+kopia_sops_age_recipient: ""
+
+# For kms method: AWS profile to use
+kopia_aws_profile: "personal-admin-management"
 
 # Backup paths - override in host_vars for different hosts
 kopia_backup_paths:
