@@ -34,16 +34,48 @@
     state: directory
     mode: '0700'
 
+- name: Check for .sops.yaml (managed by chezmoi)
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.sops.yaml"
+  register: sops_config
+
+- name: Fail if .sops.yaml is missing
+  ansible.builtin.fail:
+    msg: |
+      SOPS config not found at ~/.sops.yaml
+      Please run 'chezmoi apply' first to sync your dotfiles.
+  when: not sops_config.stat.exists
+
 - name: Ensure kopia config directory exists
   ansible.builtin.file:
     path: "{{ kopia_config_dir }}"
     state: directory
     mode: '0700'
 
-- name: Template SOPS-encrypted kopia credentials
+- name: Template kopia credentials (plaintext, temporary)
   ansible.builtin.template:
     src: kopia.yaml.j2
-    dest: "{{ kopia_config_dir }}/kopia.yaml"
+    dest: "{{ kopia_config_dir }}/kopia.plaintext.yaml"
+    mode: '0600'
+  register: kopia_config_templated
+
+- name: Encrypt kopia credentials with SOPS
+  when: kopia_config_templated.changed
+  ansible.builtin.shell: |
+    {% if kopia_sops_method == "kms" and kopia_aws_profile %}export AWS_PROFILE={{ kopia_aws_profile }} && {% endif %}
+    {% if kopia_sops_method == "age" %}export SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }} && {% endif %}
+    sops --config '{{ ansible_env.HOME }}/.sops.yaml' -e --output '{{ kopia_config_dir }}/kopia.sops.yaml' '{{ kopia_config_dir }}/kopia.plaintext.yaml'
+  args:
+    executable: /bin/bash
+
+- name: Remove temporary plaintext config
+  ansible.builtin.file:
+    path: "{{ kopia_config_dir }}/kopia.plaintext.yaml"
+    state: absent
+
+- name: Set permissions on encrypted config
+  ansible.builtin.file:
+    path: "{{ kopia_config_dir }}/kopia.sops.yaml"
     mode: '0600'
 
 - name: Template kopia connect script

@@ -6,7 +6,11 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User={{ ansible_user_id }}
+{% if kopia_sops_method == "kms" and kopia_aws_profile %}
+Environment="AWS_PROFILE={{ kopia_aws_profile }}"
+{% elif kopia_sops_method == "age" %}
 Environment="SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }}"
+{% endif %}
 ExecStart=/bin/bash -c 'source {{ kopia_config_dir }}/kopia-connect.sh && {% for path in kopia_backup_paths %}kopia snapshot create {{ path }} && {% endfor %}true'
 StandardOutput=journal
 StandardError=journal
