@@ -42,6 +42,10 @@ dnsmasq_hosts:
   - hostname: "kopia"
     ip: "100.64.7.2"
 
+  # Mouse workstation
+  - hostname: "mouse"
+    ip: "100.64.7.8"
+
 # DHCP disabled (we use static IPs on WireGuard)
 dnsmasq_dhcp_enabled: false
 
