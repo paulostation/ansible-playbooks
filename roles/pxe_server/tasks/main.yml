@@ -31,6 +31,13 @@
     creates: "{{ tftp_root }}/{{ grub_efi_dest }}"
   when: uefi_enabled | default(false)
 
+- name: Create GRUB EFI symlink for dnsmasq pxe-service compatibility
+  file:
+    src: "{{ grub_efi_dest }}"
+    dest: "{{ tftp_root }}/{{ grub_efi_dest | replace('.efi', '.0') }}"
+    state: link
+  when: uefi_enabled | default(false)
+
 - name: Install NFS server
   apt:
     name: nfs-kernel-server
