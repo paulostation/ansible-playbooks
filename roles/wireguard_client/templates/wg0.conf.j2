@@ -4,7 +4,9 @@
 [Interface]
 PrivateKey = {{ wg_privkey_content.content | b64decode | trim }}
 Address = {{ wireguard_client_ip }}/24
+{% if wireguard_dns | default('') | length > 0 %}
 DNS = {{ wireguard_dns }}
+{% endif %}
 
 [Peer]
 PublicKey = {{ wireguard_server_pubkey }}
