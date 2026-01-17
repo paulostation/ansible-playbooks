@@ -1,0 +1,57 @@
+---
+- name: Check if kopia is installed
+  ansible.builtin.command: which kopia
+  register: kopia_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install kopia
+  when: kopia_installed.rc != 0
+  block:
+    - name: Download kopia binary
+      ansible.builtin.get_url:
+        url: "https://github.com/kopia/kopia/releases/download/v{{ kopia_version }}/kopia-{{ kopia_version }}-linux-{{ ansible_architecture | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}.tar.gz"
+        dest: "/tmp/kopia-{{ kopia_version }}.tar.gz"
+        mode: '0644'
+
+    - name: Extract kopia binary
+      ansible.builtin.unarchive:
+        src: "/tmp/kopia-{{ kopia_version }}.tar.gz"
+        dest: /tmp
+        remote_src: true
+
+    - name: Install kopia to /usr/local/bin
+      ansible.builtin.copy:
+        src: "/tmp/kopia-{{ kopia_version }}-linux-{{ ansible_architecture | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}/kopia"
+        dest: /usr/local/bin/kopia
+        mode: '0755'
+        remote_src: true
+      become: true
+
+- name: Ensure SOPS age key directory exists
+  ansible.builtin.file:
+    path: "{{ kopia_sops_age_key_file | dirname }}"
+    state: directory
+    mode: '0700'
+
+- name: Ensure kopia config directory exists
+  ansible.builtin.file:
+    path: "{{ kopia_config_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Template SOPS-encrypted kopia credentials
+  ansible.builtin.template:
+    src: kopia.yaml.j2
+    dest: "{{ kopia_config_dir }}/kopia.yaml"
+    mode: '0600'
+
+- name: Template kopia connect script
+  ansible.builtin.template:
+    src: kopia-connect.sh.j2
+    dest: "{{ kopia_config_dir }}/kopia-connect.sh"
+    mode: '0700'
+
+- name: Include systemd timer tasks
+  ansible.builtin.include_tasks: systemd-timer.yml
+  when: kopia_enable_timer | bool

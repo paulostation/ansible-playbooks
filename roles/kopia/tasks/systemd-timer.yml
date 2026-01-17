@@ -1,0 +1,23 @@
+---
+- name: Template kopia backup service
+  ansible.builtin.template:
+    src: kopia-backup.service.j2
+    dest: /etc/systemd/system/kopia-backup.service
+    mode: '0644'
+  become: true
+  notify: Reload systemd
+
+- name: Template kopia backup timer
+  ansible.builtin.template:
+    src: kopia-backup.timer.j2
+    dest: /etc/systemd/system/kopia-backup.timer
+    mode: '0644'
+  become: true
+  notify: Reload systemd
+
+- name: Enable and start kopia backup timer
+  ansible.builtin.systemd:
+    name: kopia-backup.timer
+    enabled: true
+    state: started
+  become: true

@@ -1,0 +1,16 @@
+---
+# Kopia backup client configuration
+# Secrets are stored in group_vars/all/kopia.sops.yml
+
+kopia_version: "0.17.0"
+kopia_config_dir: "{{ ansible_env.HOME }}/.secrets"
+kopia_sops_age_key_file: "{{ ansible_env.HOME }}/.config/sops/age/keys.txt"
+
+# Backup paths - override in host_vars for different hosts
+kopia_backup_paths:
+  - "{{ ansible_env.HOME }}/Source_Codes"
+  - "{{ ansible_env.HOME }}/.config"
+
+# Systemd timer for scheduled backups (optional)
+kopia_enable_timer: false
+kopia_backup_schedule: "daily"
