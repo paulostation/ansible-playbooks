@@ -5,7 +5,13 @@
 PrivateKey = {{ wg_privkey_content.content | b64decode | trim }}
 Address = {{ wireguard_client_ip }}/24
 {% if wireguard_dns | default('') | length > 0 %}
+{% if wireguard_dns_domains | default([]) | length > 0 %}
+# Split DNS: VPN DNS only for specified domains
+PostUp = resolvectl dns %i {{ wireguard_dns }}; resolvectl domain %i {{ wireguard_dns_domains | map('regex_replace', '^', '~') | join(' ') }}
+PostDown = resolvectl revert %i
+{% else %}
 DNS = {{ wireguard_dns }}
+{% endif %}
 {% endif %}
 
 [Peer]
