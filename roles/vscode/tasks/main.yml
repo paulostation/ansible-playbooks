@@ -4,14 +4,14 @@
   apt_key:
     url: https://packages.microsoft.com/keys/microsoft.asc
     keyring: /etc/apt/trusted.gpg.d/microsoft.gpg
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts["os_family"] == 'Debian'
 
 - name: Add VSCode repository into sources list (Debian/Ubuntu)
   apt_repository:
     repo: deb [signed-by=/etc/apt/trusted.gpg.d/microsoft.gpg] https://packages.microsoft.com/repos/vscode stable main
     state: present
     filename: vscode
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts["os_family"] == 'Debian'
   tags:
     - apt
 
@@ -20,7 +20,7 @@
   apt:
     name: apt-transport-https
     state: present
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts["os_family"] == 'Debian'
 
 - name: Install Visual Studio Code (Debian/Ubuntu)
   become: yes
@@ -28,21 +28,21 @@
     name: code
     state: present
     update_cache: yes
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts["os_family"] == 'Debian'
 
 # Arch Linux - Download and install from official binary
 - name: Check if VS Code is already installed (Arch Linux)
   stat:
     path: /usr/bin/code
   register: vscode_binary
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts["os_family"] == 'Archlinux'
 
 - name: Download VS Code tarball (Arch Linux)
   get_url:
     url: https://code.visualstudio.com/sha/download?build=stable&os=linux-x64
     dest: /tmp/vscode.tar.gz
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts["os_family"] == 'Archlinux'
     - not vscode_binary.stat.exists | default(true)
 
 - name: Create /opt/vscode directory (Arch Linux)
@@ -51,7 +51,7 @@
     path: /opt/vscode
     state: directory
     mode: "0755"
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts["os_family"] == 'Archlinux'
 
 - name: Extract VS Code to /opt/vscode (Arch Linux)
   become: yes
@@ -61,7 +61,7 @@
     remote_src: yes
     extra_opts: [--strip-components=1]
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts["os_family"] == 'Archlinux'
     - not vscode_binary.stat.exists | default(true)
 
 - name: Create symlink for code binary (Arch Linux)
@@ -70,10 +70,10 @@
     src: /opt/vscode/bin/code
     dest: /usr/local/bin/code
     state: link
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts["os_family"] == 'Archlinux'
 
 - name: Cleanup VS Code tarball (Arch Linux)
   file:
     path: /tmp/vscode.tar.gz
     state: absent
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts["os_family"] == 'Archlinux'

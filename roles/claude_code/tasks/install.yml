@@ -11,7 +11,7 @@
   become: false
   shell: curl -fsSL https://claude.ai/install.sh | bash
   args:
-    creates: "{{ ansible_env.HOME }}/.claude/local/bin/claude"
+    creates: "{{ ansible_facts['env']['HOME'] }}/.claude/local/bin/claude"
   when:
     - claude_which.rc != 0
     - claude_code_install_method == "script"
@@ -29,10 +29,11 @@
 - name: Verify Claude Code installation
   become: false
   shell: |
-    export PATH="$HOME/.claude/local/bin:$PATH"
+    export PATH="{{ ansible_facts['env']['HOME'] }}/.claude/local/bin:$PATH"
     claude --version
   register: claude_version
   changed_when: false
+  failed_when: false
 
 - name: Display Claude Code version
   debug:

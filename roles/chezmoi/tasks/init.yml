@@ -58,6 +58,19 @@
     msg: "Either chezmoi_github_username or chezmoi_repo_url must be set"
   when: chezmoi_source == ""
 
+# Ensure GitHub SSH host key is known (for SSH URL clones)
+- name: Add GitHub to known_hosts
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  known_hosts:
+    name: github.com
+    key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+    path: "/home/{{ chezmoi_user }}/.ssh/known_hosts"
+    state: present
+  when:
+    - not chezmoi_initialized.stat.exists
+    - "'github.com' in chezmoi_source"
+
 # Initialize chezmoi (first time)
 - name: Initialize chezmoi with dotfiles repo
   become: true

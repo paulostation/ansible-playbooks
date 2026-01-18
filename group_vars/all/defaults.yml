@@ -1,0 +1,4 @@
+ansible_user: paulao
+
+# Chezmoi dotfiles repo (SSH URL for non-interactive auth)
+chezmoi_repo_url: "git@github.com:paulostation/dotfiles.git"

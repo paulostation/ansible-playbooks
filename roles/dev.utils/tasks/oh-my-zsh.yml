@@ -2,23 +2,29 @@
   apt:
     name: zsh
     state: present
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts["os_family"] == 'Debian'
 
 - name: Install ZSH (Arch Linux)
   community.general.pacman:
     name: zsh
     state: present
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts["os_family"] == 'Archlinux'
+
+- name: Check if Oh My Zsh is already installed
+  stat:
+    path: "/home/{{ ansible_user }}/.oh-my-zsh"
+  register: omz_installed
 
 - name: Download Oh My Zsh install script
   get_url:
     url: "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
     dest: "/tmp/install_zsh.sh"
+  when: not omz_installed.stat.exists
 
 - name: Run Oh My Zsh install script
   become: false
   command: "bash /tmp/install_zsh.sh"
-  ignore_errors: true
+  when: not omz_installed.stat.exists
 
 - name: change user shell to zsh
   become: yes

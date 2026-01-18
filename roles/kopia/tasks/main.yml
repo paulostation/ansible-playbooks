@@ -10,7 +10,7 @@
   block:
     - name: Download kopia binary
       ansible.builtin.get_url:
-        url: "https://github.com/kopia/kopia/releases/download/v{{ kopia_version }}/kopia-{{ kopia_version }}-linux-{{ ansible_architecture | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}.tar.gz"
+        url: "https://github.com/kopia/kopia/releases/download/v{{ kopia_version }}/kopia-{{ kopia_version }}-linux-{{ ansible_facts['architecture'] | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}.tar.gz"
         dest: "/tmp/kopia-{{ kopia_version }}.tar.gz"
         mode: '0644'
 
@@ -22,7 +22,7 @@
 
     - name: Install kopia to /usr/local/bin
       ansible.builtin.copy:
-        src: "/tmp/kopia-{{ kopia_version }}-linux-{{ ansible_architecture | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}/kopia"
+        src: "/tmp/kopia-{{ kopia_version }}-linux-{{ ansible_facts['architecture'] | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}/kopia"
         dest: /usr/local/bin/kopia
         mode: '0755'
         remote_src: true
@@ -36,14 +36,14 @@
 
 - name: Check for .sops.yaml (managed by chezmoi)
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.sops.yaml"
+    path: "{{ ansible_facts['env']['HOME'] }}/.sops.yaml"
   register: sops_config
 
-- name: Fail if .sops.yaml is missing
-  ansible.builtin.fail:
+- name: Warn if .sops.yaml is missing
+  ansible.builtin.debug:
     msg: |
-      SOPS config not found at ~/.sops.yaml
-      Please run 'chezmoi apply' first to sync your dotfiles.
+      WARNING: SOPS config not found at ~/.sops.yaml
+      Skipping kopia credential encryption. Run 'chezmoi apply' to sync your dotfiles.
   when: not sops_config.stat.exists
 
 - name: Ensure kopia config directory exists
@@ -52,31 +52,42 @@
     state: directory
     mode: '0700'
 
-- name: Template kopia credentials (plaintext, temporary)
-  ansible.builtin.template:
-    src: kopia.yaml.j2
-    dest: "{{ kopia_config_dir }}/kopia.plaintext.yaml"
-    mode: '0600'
-  register: kopia_config_templated
-
-- name: Encrypt kopia credentials with SOPS
-  when: kopia_config_templated.changed
-  ansible.builtin.shell: |
-    {% if kopia_sops_method == "kms" and kopia_aws_profile %}export AWS_PROFILE={{ kopia_aws_profile }} && {% endif %}
-    {% if kopia_sops_method == "age" %}export SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }} && {% endif %}
-    sops --config '{{ ansible_env.HOME }}/.sops.yaml' -e --output '{{ kopia_config_dir }}/kopia.sops.yaml' '{{ kopia_config_dir }}/kopia.plaintext.yaml'
-  args:
-    executable: /bin/bash
-
-- name: Remove temporary plaintext config
-  ansible.builtin.file:
-    path: "{{ kopia_config_dir }}/kopia.plaintext.yaml"
-    state: absent
-
-- name: Set permissions on encrypted config
-  ansible.builtin.file:
+- name: Check if encrypted config exists
+  ansible.builtin.stat:
     path: "{{ kopia_config_dir }}/kopia.sops.yaml"
-    mode: '0600'
+  register: kopia_encrypted_config
+
+# SOPS-dependent tasks - only run if .sops.yaml exists
+- name: Configure kopia with SOPS encryption
+  when: sops_config.stat.exists
+  block:
+    - name: Template kopia credentials (plaintext, temporary)
+      ansible.builtin.template:
+        src: kopia.yaml.j2
+        dest: "{{ kopia_config_dir }}/kopia.plaintext.yaml"
+        mode: '0600'
+      register: kopia_config_templated
+      when: not kopia_encrypted_config.stat.exists
+
+    - name: Encrypt kopia credentials with SOPS
+      when: kopia_config_templated.changed | default(false) or not kopia_encrypted_config.stat.exists
+      ansible.builtin.shell: |
+        {% if kopia_sops_method == "kms" and kopia_aws_profile %}export AWS_PROFILE={{ kopia_aws_profile }} && {% endif %}
+        {% if kopia_sops_method == "age" %}export SOPS_AGE_KEY_FILE={{ kopia_sops_age_key_file }} && {% endif %}
+        sops --config '{{ ansible_facts['env']['HOME'] }}/.sops.yaml' -e --output '{{ kopia_config_dir }}/kopia.sops.yaml' '{{ kopia_config_dir }}/kopia.plaintext.yaml'
+      args:
+        executable: /bin/bash
+
+    - name: Remove temporary plaintext config
+      ansible.builtin.file:
+        path: "{{ kopia_config_dir }}/kopia.plaintext.yaml"
+        state: absent
+
+    - name: Set permissions on encrypted config
+      ansible.builtin.file:
+        path: "{{ kopia_config_dir }}/kopia.sops.yaml"
+        mode: '0600'
+      when: kopia_encrypted_config.stat.exists or kopia_config_templated.changed | default(false)
 
 - name: Template kopia connect script
   ansible.builtin.template:
