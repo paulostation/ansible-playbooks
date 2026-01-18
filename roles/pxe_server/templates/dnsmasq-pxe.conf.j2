@@ -1,9 +1,11 @@
 # PXE Boot Server Configuration (ProxyDHCP mode)
 # Managed by Ansible - do not edit manually
 
-# Listen on {{ pxe_interface }} only
-interface={{ pxe_interface }}
-bind-interfaces
+# Listen on configured interfaces
+{% for iface in pxe_interfaces %}
+interface={{ iface }}
+{% endfor %}
+bind-dynamic
 
 # ProxyDHCP mode - don't assign IPs, just provide boot info
 dhcp-range={{ pxe_network }},proxy
