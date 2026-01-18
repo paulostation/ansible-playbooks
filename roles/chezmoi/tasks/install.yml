@@ -13,7 +13,7 @@
     name: chezmoi
     state: present
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts["os_family"] == 'Archlinux'
     - not chezmoi_binary.stat.exists
 
 # Debian/Ubuntu - download binary from GitHub
@@ -23,23 +23,23 @@
     return_content: yes
   register: chezmoi_release
   when:
-    - ansible_os_family == 'Debian'
+    - ansible_facts["os_family"] == 'Debian'
     - not chezmoi_binary.stat.exists
 
 - name: Set chezmoi version fact
   set_fact:
     chezmoi_version: "{{ chezmoi_release.json.tag_name }}"
   when:
-    - ansible_os_family == 'Debian'
+    - ansible_facts["os_family"] == 'Debian'
     - not chezmoi_binary.stat.exists
 
 - name: Download chezmoi binary (Debian/Ubuntu)
   become: true
   get_url:
-    url: "https://github.com/twpayne/chezmoi/releases/download/{{ chezmoi_version }}/chezmoi_{{ chezmoi_version | regex_replace('^v', '') }}_linux_amd64.tar.gz"
+    url: "https://github.com/twpayne/chezmoi/releases/download/{{ chezmoi_version }}/chezmoi_{{ chezmoi_version | regex_replace('^v', '') }}_linux_{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}.tar.gz"
     dest: /tmp/chezmoi.tar.gz
   when:
-    - ansible_os_family == 'Debian'
+    - ansible_facts["os_family"] == 'Debian'
     - not chezmoi_binary.stat.exists
 
 - name: Extract chezmoi binary (Debian/Ubuntu)
@@ -51,14 +51,14 @@
     extra_opts:
       - chezmoi
   when:
-    - ansible_os_family == 'Debian'
+    - ansible_facts["os_family"] == 'Debian'
     - not chezmoi_binary.stat.exists
 
 - name: Cleanup chezmoi tarball (Debian/Ubuntu)
   file:
     path: /tmp/chezmoi.tar.gz
     state: absent
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts["os_family"] == 'Debian'
 
 - name: Verify chezmoi installation
   command: chezmoi --version

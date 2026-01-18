@@ -5,7 +5,7 @@
     update_cache: true
   when:
     - asdf_update_cache
-    - ansible_os_family == 'Debian'
+    - ansible_facts["os_family"] == 'Debian'
 
 - name: Ensure pacman cache is updated (Arch Linux)
   become: true
@@ -13,21 +13,21 @@
     update_cache: true
   when:
     - asdf_update_cache
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts["os_family"] == 'Archlinux'
 
 - name: Install prerequisites (Debian/Ubuntu)
   become: true
   ansible.builtin.apt:
     name: "{{ asdf_prereqs_debian }}"
     state: present
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts["os_family"] == 'Debian'
 
 - name: Install prerequisites (Arch Linux)
   become: true
   community.general.pacman:
     name: "{{ asdf_prereqs_arch }}"
     state: present
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts["os_family"] == 'Archlinux'
 
 - name: Ensure asdf parent directory exists
   become: true
@@ -105,7 +105,7 @@
     executable: /bin/bash
   environment:
     ASDF_DIR: "{{ asdf_dir }}"
-    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_facts['env']['PATH'] }}"
   loop: "{{ asdf_plugins }}"
   changed_when: false
 
@@ -120,7 +120,7 @@
     executable: /bin/bash
   environment:
     ASDF_DIR: "{{ asdf_dir }}"
-    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_facts['env']['PATH'] }}"
   loop: "{{ asdf_plugins }}"
   register: install_results
   # Mark changed only if the install path is created during this run
@@ -138,7 +138,7 @@
     executable: /bin/bash
   environment:
     ASDF_DIR: "{{ asdf_dir }}"
-    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_facts['env']['PATH'] }}"
   loop: "{{ asdf_plugins }}"
 
 - name: Show final asdf tool versions (debug)
@@ -155,7 +155,7 @@
     executable: /bin/bash
   environment:
     ASDF_DIR: "{{ asdf_dir }}"
-    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_env.PATH }}"
+    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_facts['env']['PATH'] }}"
   register: asdf_summary
   changed_when: false
 

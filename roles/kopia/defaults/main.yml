@@ -4,7 +4,7 @@
 # KMS ARN is read from the project's .sops.yaml
 
 kopia_version: "0.17.0"
-kopia_config_dir: "{{ ansible_env.HOME }}/.secrets"
+kopia_config_dir: "{{ ansible_facts['env']['HOME'] }}/.secrets"
 
 # SOPS encryption/decryption method: "age" or "kms"
 # - age: uses age key for encryption/decryption
@@ -12,7 +12,7 @@ kopia_config_dir: "{{ ansible_env.HOME }}/.secrets"
 kopia_sops_method: "kms"
 
 # For age method: path to age private key file (for decryption)
-kopia_sops_age_key_file: "{{ ansible_env.HOME }}/.config/sops/age/keys.txt"
+kopia_sops_age_key_file: "{{ ansible_facts['env']['HOME'] }}/.config/sops/age/keys.txt"
 # For age method: age public key (for encryption)
 kopia_sops_age_recipient: ""
 
@@ -21,8 +21,8 @@ kopia_aws_profile: "personal-admin-management"
 
 # Backup paths - override in host_vars for different hosts
 kopia_backup_paths:
-  - "{{ ansible_env.HOME }}/Source_Codes"
-  - "{{ ansible_env.HOME }}/.config"
+  - "{{ ansible_facts['env']['HOME'] }}/Source_Codes"
+  - "{{ ansible_facts['env']['HOME'] }}/.config"
 
 # Systemd timer for scheduled backups (optional)
 kopia_enable_timer: false
