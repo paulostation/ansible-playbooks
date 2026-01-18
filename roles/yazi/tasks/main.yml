@@ -1,4 +1,35 @@
 ---
+# Install preview dependencies - Debian/Ubuntu
+- name: Install yazi preview dependencies (Debian/Ubuntu)
+  when: ansible_facts['os_family'] == "Debian"
+  become: true
+  ansible.builtin.apt:
+    name:
+      - poppler-utils       # pdftoppm for PDF previews
+      - ffmpeg              # Video processing
+      - ffmpegthumbnailer   # Video thumbnail generation
+      - imagemagick         # Image manipulation
+      - chafa               # Terminal image fallback
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# Install preview dependencies - Arch Linux
+- name: Install yazi preview dependencies (Arch Linux)
+  when: ansible_facts['os_family'] == "Archlinux"
+  become: true
+  community.general.pacman:
+    name:
+      - poppler             # pdftoppm for PDF previews
+      - ffmpeg              # Video processing
+      - ffmpegthumbnailer   # Video thumbnail generation
+      - imagemagick         # Image manipulation
+      - chafa               # Terminal image fallback
+      - kitty               # Terminal with Kitty graphics protocol
+      - ttf-hack-nerd       # Nerd font for icons
+    state: present
+    update_cache: true
+
 # Binary installation method
 - name: Install yazi from GitHub binary release
   when: yazi_install_method == "binary"
