@@ -16,7 +16,7 @@ chezmoi_install_dir: "/usr/local/bin"
 
 # Age encryption (reuses SOPS age key)
 chezmoi_age_enabled: true
-chezmoi_age_key_file: "{{ ansible_env.HOME }}/.config/sops/age/keys.txt"
+chezmoi_age_key_file: "{{ ansible_facts['env']['HOME'] }}/.config/sops/age/keys.txt"
 # Set this to the age public key (from age-keygen or .sops.yaml)
 chezmoi_age_recipient: ""
 

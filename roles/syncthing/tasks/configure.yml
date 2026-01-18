@@ -1,7 +1,3 @@
-- name: Install dependencies
-  pip:
-    name: lxml
-
 - name: Debug devices to add
   debug:
     msg: "{{ devices_to_add }}"

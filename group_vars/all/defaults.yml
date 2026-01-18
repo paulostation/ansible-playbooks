@@ -1,0 +1,4 @@
+ansible_user: REDACTED
+
+# Chezmoi dotfiles repo (SSH URL for non-interactive auth)
+chezmoi_repo_url: "REDACTED"

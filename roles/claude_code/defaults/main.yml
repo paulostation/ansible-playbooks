@@ -10,4 +10,4 @@ claude_code_install_method: "script"
 claude_code_install_superpowers: true
 
 # Config directory (Claude Code uses ~/.claude)
-claude_code_config_dir: "{{ ansible_env.HOME }}/.claude"
+claude_code_config_dir: "{{ ansible_facts['env']['HOME'] }}/.claude"

@@ -1,0 +1,4 @@
+ansible_become_pass: lWAe0xJ2SNkWsxIF
+
+# Skip chezmoi init until SSH key is configured for GitHub
+chezmoi_auto_init: false
