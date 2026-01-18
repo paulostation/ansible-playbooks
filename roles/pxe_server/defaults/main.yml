@@ -1,5 +1,7 @@
 # PXE Server Configuration
-pxe_interface: wlan0
+pxe_interfaces:
+  - wlan0
+  - eth0
 pxe_server_ip: "{{ ansible_host }}"
 pxe_network: 192.168.15.0
 

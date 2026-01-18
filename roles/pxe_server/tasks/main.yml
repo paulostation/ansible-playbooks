@@ -89,6 +89,14 @@
     mode: '0644'
   when: uefi_enabled | default(false)
 
+- name: Disable bind-interfaces in main dnsmasq.conf (conflicts with bind-dynamic)
+  lineinfile:
+    path: /etc/dnsmasq.conf
+    regexp: '^bind-interfaces'
+    line: '#bind-interfaces'
+    backrefs: no
+  notify: restart dnsmasq
+
 - name: Configure dnsmasq for PXE
   template:
     src: dnsmasq-pxe.conf.j2
