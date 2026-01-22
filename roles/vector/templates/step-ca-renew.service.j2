@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Step CA Certificate Auto-Renewal for Vector
+Documentation=https://smallstep.com/docs/step-cli/reference/ca/renew/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/step-cli ca renew --daemon {{ vector_cert_file }} {{ vector_key_file }}
+Restart=always
+RestartSec=10
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths={{ vector_cert_dir }}
+ReadWritePaths=/root/.step
+
+[Install]
+WantedBy=multi-user.target

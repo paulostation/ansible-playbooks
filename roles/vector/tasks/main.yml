@@ -1,0 +1,226 @@
+---
+# Vector installation and configuration tasks
+
+- name: Install Vector
+  block:
+    - name: Install apt-transport-https (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - curl
+          - gnupg
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Create Datadog keyring file (Debian/Ubuntu)
+      ansible.builtin.file:
+        path: /usr/share/keyrings/datadog-archive-keyring.gpg
+        state: touch
+        mode: "0644"
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Import Datadog GPG keys for Vector (Debian/Ubuntu)
+      ansible.builtin.shell: |
+        curl -fsSL https://keys.datadoghq.com/DATADOG_APT_KEY_CURRENT.public | gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch 2>/dev/null || true
+        curl -fsSL https://keys.datadoghq.com/DATADOG_APT_KEY_F14F620E.public | gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch 2>/dev/null || true
+        curl -fsSL https://keys.datadoghq.com/DATADOG_APT_KEY_C0962C7D.public | gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch 2>/dev/null || true
+      args:
+        creates: /etc/apt/sources.list.d/vector.list
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Add Vector APT repository (Debian/Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/datadog-archive-keyring.gpg] https://apt.vector.dev/ stable vector-0"
+        filename: vector
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install Vector package (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: "vector{% if vector_version != 'latest' %}={{ vector_version }}{% endif %}"
+        state: "{{ 'latest' if vector_version == 'latest' else 'present' }}"
+        update_cache: true
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install Vector package (Arch Linux)
+      community.general.pacman:
+        name: vector
+        state: present
+      when: ansible_facts['os_family'] == "Archlinux"
+
+- name: Create Vector directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ vector_config_dir }}"
+    - "{{ vector_data_dir }}"
+
+- name: Create TLS directory
+  ansible.builtin.file:
+    path: "{{ vector_cert_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: vector_mtls_enabled
+
+- name: Configure mTLS certificates
+  when: vector_mtls_enabled
+  block:
+    - name: Check if step-cli is installed
+      ansible.builtin.command: which step-cli
+      register: step_cli_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install step-cli (Debian/Ubuntu)
+      when:
+        - step_cli_check.rc != 0
+        - ansible_os_family == "Debian"
+      block:
+        - name: Download step-cli deb package
+          ansible.builtin.get_url:
+            url: "https://dl.smallstep.com/gh-release/cli/docs-cli-install/v0.25.0/step-cli_0.25.0_amd64.deb"
+            dest: "/tmp/step-cli.deb"
+            mode: "0644"
+
+        - name: Install step-cli deb package
+          ansible.builtin.apt:
+            deb: "/tmp/step-cli.deb"
+            state: present
+
+    - name: Install step-cli (Arch Linux)
+      community.general.pacman:
+        name: step-cli
+        state: present
+      when:
+        - step_cli_check.rc != 0
+        - ansible_os_family == "Archlinux"
+
+    - name: Check if CA is bootstrapped
+      ansible.builtin.stat:
+        path: "/root/.step/certs/root_ca.crt"
+      register: step_ca_bootstrapped
+
+    - name: Bootstrap step-cli with CA
+      ansible.builtin.command: >
+        step-cli ca bootstrap
+        --ca-url {{ vector_step_ca_url }}
+        --fingerprint {{ vector_step_ca_fingerprint }}
+      when: not step_ca_bootstrapped.stat.exists
+
+    - name: Check if client certificate exists
+      ansible.builtin.stat:
+        path: "{{ vector_cert_file }}"
+      register: client_cert_exists
+
+    - name: Check certificate expiry
+      ansible.builtin.shell: |
+        step-cli certificate inspect {{ vector_cert_file }} --format json | jq -r '.validity.end'
+      register: cert_expiry
+      when: client_cert_exists.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Request client certificate from step-ca
+      when: >
+        not client_cert_exists.stat.exists or
+        (cert_expiry.stdout is defined and
+         (cert_expiry.stdout | to_datetime('%Y-%m-%dT%H:%M:%SZ')) < (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ')))
+      block:
+        - name: Create temporary password file
+          ansible.builtin.copy:
+            content: "{{ vector_step_ca_provisioner_password }}"
+            dest: "/tmp/step-ca-password"
+            mode: "0600"
+          no_log: true
+
+        - name: Request certificate from step-ca
+          ansible.builtin.command: >
+            step-cli ca certificate "{{ inventory_hostname }}"
+            {{ vector_cert_file }}
+            {{ vector_key_file }}
+            --provisioner {{ vector_step_ca_provisioner }}
+            --provisioner-password-file /tmp/step-ca-password
+            --force
+          register: cert_request
+          no_log: true
+
+        - name: Remove temporary password file
+          ansible.builtin.file:
+            path: "/tmp/step-ca-password"
+            state: absent
+
+    - name: Copy CA certificate
+      ansible.builtin.copy:
+        src: "/root/.step/certs/root_ca.crt"
+        dest: "{{ vector_ca_file }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Set certificate file permissions
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ vector_cert_file }}", mode: "0644" }
+        - { path: "{{ vector_key_file }}", mode: "0600" }
+
+- name: Deploy Vector configuration
+  ansible.builtin.template:
+    src: vector.yaml.j2
+    dest: "{{ vector_config_dir }}/vector.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "vector validate %s"
+  notify: Restart Vector
+
+- name: Deploy Vector systemd service
+  ansible.builtin.template:
+    src: vector.service.j2
+    dest: /etc/systemd/system/vector.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart Vector
+
+- name: Deploy step-ca renewal service
+  when:
+    - vector_mtls_enabled
+    - vector_cert_renewal_enabled
+  block:
+    - name: Deploy step-ca-renew systemd service
+      ansible.builtin.template:
+        src: step-ca-renew.service.j2
+        dest: /etc/systemd/system/step-ca-renew.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart step-ca-renew
+
+    - name: Enable and start step-ca-renew service
+      ansible.builtin.systemd:
+        name: step-ca-renew
+        enabled: true
+        state: started
+        daemon_reload: true
+
+- name: Enable and start Vector service
+  ansible.builtin.systemd:
+    name: vector
+    enabled: true
+    state: started
+    daemon_reload: true

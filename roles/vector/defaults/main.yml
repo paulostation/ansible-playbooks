@@ -1,0 +1,50 @@
+---
+# Vector role defaults
+
+# Package version (use "latest" for most recent)
+vector_version: "latest"
+
+# Directory paths
+vector_config_dir: "/etc/vector"
+vector_data_dir: "/var/lib/vector"
+
+# Aggregator connection settings
+vector_aggregator_address: "stremio-rpi.prod.paulo.software.vpn:31600"
+vector_aggregator_version: "2"
+
+# mTLS configuration
+vector_mtls_enabled: false
+vector_cert_dir: "{{ vector_config_dir }}/tls"
+vector_ca_file: "{{ vector_cert_dir }}/ca.crt"
+vector_cert_file: "{{ vector_cert_dir }}/client.crt"
+vector_key_file: "{{ vector_cert_dir }}/client.key"
+vector_verify_certificate: true
+vector_verify_hostname: false
+
+# step-ca settings (when mTLS enabled)
+vector_step_ca_url: "https://ca.prod.paulo.software.vpn"
+vector_step_ca_fingerprint: "be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd"
+vector_step_ca_provisioner: "step-issuer"
+vector_step_ca_provisioner_password: ""  # Should be encrypted with SOPS
+
+# Certificate renewal daemon
+vector_cert_renewal_enabled: true
+
+# Sources configuration (default: journald)
+vector_sources:
+  journald:
+    type: journald
+    current_boot_only: true
+
+# Additional transforms (merged with default host transform)
+vector_extra_transforms: {}
+
+# Host identifier (defaults to inventory_hostname)
+vector_host_identifier: "{{ inventory_hostname }}"
+
+# Vector API settings
+vector_api_enabled: true
+vector_api_address: "127.0.0.1:8686"
+
+# Healthcheck settings
+vector_healthcheck_enabled: false
