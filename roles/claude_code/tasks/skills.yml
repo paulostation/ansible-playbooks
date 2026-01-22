@@ -1,0 +1,59 @@
+---
+# Configure personal Claude Code skills from git repository
+
+- name: Ensure skills repo directory exists
+  become: false
+  file:
+    path: "{{ claude_code_skills_repo_dir }}"
+    state: directory
+    owner: "{{ claude_code_user }}"
+    mode: "0755"
+
+- name: Clone or update skills repository
+  become: false
+  git:
+    repo: "{{ claude_code_skills_repo }}"
+    dest: "{{ claude_code_skills_repo_dir }}"
+    version: "{{ claude_code_skills_version }}"
+    force: yes
+  register: skills_git_result
+
+- name: Ensure Claude skills directory exists
+  become: false
+  file:
+    path: "{{ claude_code_config_dir }}/skills"
+    state: directory
+    owner: "{{ claude_code_user }}"
+    mode: "0755"
+
+- name: Find all skills in repo
+  find:
+    paths: "{{ claude_code_skills_repo_dir }}"
+    file_type: directory
+    recurse: no
+    excludes:
+      - ".git"
+  register: skill_dirs
+  when: claude_code_skills_all | bool
+
+- name: Symlink all skills from repo
+  become: false
+  file:
+    src: "{{ item.path }}"
+    dest: "{{ claude_code_config_dir }}/skills/{{ item.path | basename }}"
+    state: link
+    force: yes
+  loop: "{{ skill_dirs.files }}"
+  when:
+    - claude_code_skills_all | bool
+    - item.path | basename not in ['.git', 'README.md', 'LICENSE']
+
+- name: Symlink specific skills from repo
+  become: false
+  file:
+    src: "{{ claude_code_skills_repo_dir }}/{{ item }}"
+    dest: "{{ claude_code_config_dir }}/skills/{{ item }}"
+    state: link
+    force: yes
+  loop: "{{ claude_code_skills_list }}"
+  when: not claude_code_skills_all | bool
