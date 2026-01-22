@@ -1,0 +1,19 @@
+---
+# Vector agent playbook
+# Ships journald logs to ELK via Vector aggregator with mTLS
+#
+# Usage:
+#   ansible-playbook playbooks/vector-agent.yml -l <host>
+#
+# Prerequisites:
+#   - Host must be in 'vector_agents' group (inventory)
+#   - VPN connectivity to 192.168.15.3 (stremio-rpi)
+#   - step-ca accessible at ca.prod.paulo.software.vpn
+
+- name: Deploy Vector log shipping agent
+  hosts: vector_agents
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: vector
