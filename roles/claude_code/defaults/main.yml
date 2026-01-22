@@ -11,3 +11,12 @@ claude_code_install_superpowers: true
 
 # Config directory (Claude Code uses ~/.claude)
 claude_code_config_dir: "{{ ansible_facts['env']['HOME'] }}/.claude"
+
+# Skills configuration
+claude_code_install_skills: true
+claude_code_skills_repo: "https://github.com/paulostation/claude-skills.git"
+claude_code_skills_version: "main"
+claude_code_skills_repo_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/claude-skills-repo"
+claude_code_skills_all: true
+claude_code_skills_list:
+  - documenting
