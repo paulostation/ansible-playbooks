@@ -28,6 +28,9 @@
       - name: mouse
         public_key: "{{ mouse_wireguard_pubkey }}"
         allowed_ips: "100.64.7.8/32"
+      - name: oci-vmetrics
+        public_key: "{{ oci_vmetrics_wireguard_pubkey }}"
+        allowed_ips: "100.64.7.9/32"
 
   pre_tasks:
     - name: Wait for cloud-init to complete
