@@ -7,3 +7,7 @@
 - name: Configure plugins
   include_tasks: plugins.yml
   when: claude_code_install_superpowers | bool
+
+- name: Configure personal skills
+  include_tasks: skills.yml
+  when: claude_code_install_skills | bool
