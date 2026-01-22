@@ -1,0 +1,19 @@
+---
+# Vector agent group defaults
+
+# Enable mTLS for secure log shipping
+vector_mtls_enabled: true
+
+# Aggregator endpoint (stremio-rpi NodePort via VPN DNS)
+vector_aggregator_address: "stremio-rpi.prod.paulo.software.vpn:31600"
+
+# step-ca configuration
+vector_step_ca_url: "https://ca.prod.paulo.software.vpn"
+vector_step_ca_fingerprint: "be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd"
+vector_step_ca_provisioner: "step-issuer"
+
+# Default sources - journald for system logs
+vector_sources:
+  journald:
+    type: journald
+    current_boot_only: true

@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Vector Log Shipper
+Documentation=https://vector.dev
+After=network-online.target
+Wants=network-online.target
+{% if vector_mtls_enabled and vector_cert_renewal_enabled %}
+After=step-ca-renew.service
+{% endif %}
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/vector --config {{ vector_config_dir }}/vector.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+Environment=VECTOR_LOG=info
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths={{ vector_data_dir }}
+{% if vector_mtls_enabled %}
+ReadWritePaths={{ vector_cert_dir }}
+{% endif %}
+
+[Install]
+WantedBy=multi-user.target
