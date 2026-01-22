@@ -1,0 +1,84 @@
+name: Check SOPS KMS Encryption
+run-name: Verify all secrets are encrypted with KMS
+
+on:
+  pull_request:
+    paths:
+      - '**/*.sops.yml'
+      - '**/*.sops.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.sops.yml'
+      - '**/*.sops.yaml'
+
+jobs:
+  check-kms:
+    name: Verify KMS encryption
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find and check SOPS files
+        run: |
+          #!/bin/bash
+          set -euo pipefail
+
+          EXPECTED_KMS_ARN="arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310"
+          FAILED=0
+          CHECKED=0
+
+          echo "Checking all SOPS-encrypted files for KMS encryption..."
+          echo "Expected KMS ARN: ${EXPECTED_KMS_ARN}"
+          echo "---"
+
+          # Find all sops secret files (exclude .sops.yaml config)
+          while IFS= read -r -d '' file; do
+            # Skip the SOPS config file itself
+            if [[ "$(basename "$file")" == ".sops.yaml" ]]; then
+              continue
+            fi
+            CHECKED=$((CHECKED + 1))
+            echo "Checking: ${file}"
+
+            # Check if file has sops metadata (is actually encrypted)
+            if ! grep -q "^sops:" "$file"; then
+              echo "  ❌ FAIL: File is not encrypted (no sops metadata)"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+
+            # Check if KMS section exists
+            if ! grep -q "kms:" "$file"; then
+              echo "  ❌ FAIL: No KMS encryption configured"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+
+            # Check if the expected KMS ARN is present
+            if ! grep -q "${EXPECTED_KMS_ARN}" "$file"; then
+              echo "  ❌ FAIL: Expected KMS ARN not found"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+
+            echo "  ✅ OK: KMS encryption verified"
+
+          done < <(find . -type f \( -name "*.sops.yml" -o -name "*.sops.yaml" \) -print0)
+
+          echo "---"
+          echo "Checked ${CHECKED} files, ${FAILED} failed"
+
+          if [[ ${CHECKED} -eq 0 ]]; then
+            echo "⚠️  No SOPS files found"
+            exit 0
+          fi
+
+          if [[ ${FAILED} -gt 0 ]]; then
+            echo "❌ Some files are missing KMS encryption"
+            exit 1
+          fi
+
+          echo "✅ All SOPS files are properly encrypted with KMS"
