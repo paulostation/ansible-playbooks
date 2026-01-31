@@ -12,14 +12,14 @@ claude_code_install_superpowers: true
 # Config directory (Claude Code uses ~/.claude)
 # Note: Use ansible_facts['user_dir'] to get the correct home directory
 # of the connected user regardless of privilege escalation (become)
-claude_code_home: "{{ ansible_facts['user_dir'] }}"
+claude_code_home: "~{{ claude_code_user }}"
 claude_code_config_dir: "{{ claude_code_home }}/.claude"
 
 # Skills configuration
 claude_code_install_skills: true
-claude_code_skills_repo: "https://github.com/paulostation/claude-skills.git"
+claude_code_skills_repo: "git@github.com:paulostation/claude-skills.git"
 claude_code_skills_version: "main"
-claude_code_skills_repo_dir: "{{ ansible_facts['user_dir'] }}/.local/share/claude-skills-repo"
+claude_code_skills_repo_dir: "~{{ claude_code_user }}/.local/share/claude-skills-repo"
 claude_code_skills_all: true
 claude_code_skills_list:
   - documenting
