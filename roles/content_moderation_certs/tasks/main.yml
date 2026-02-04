@@ -1,0 +1,127 @@
+---
+# Content Moderation Pipeline certificate provisioning
+
+- name: Create certificate directory
+  ansible.builtin.file:
+    path: "{{ cm_cert_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check if step-cli is installed
+  ansible.builtin.command: which step-cli
+  register: step_cli_check
+  failed_when: false
+  changed_when: false
+
+- name: Install step-cli (Arch Linux)
+  community.general.pacman:
+    name: step-cli
+    state: present
+  when:
+    - step_cli_check.rc != 0
+    - ansible_os_family == "Archlinux"
+
+- name: Check if CA is bootstrapped
+  ansible.builtin.stat:
+    path: "/root/.step/certs/root_ca.crt"
+  register: step_ca_bootstrapped
+
+- name: Bootstrap step-cli with CA
+  ansible.builtin.command: >
+    step-cli ca bootstrap
+    --ca-url {{ cm_step_ca_url }}
+    --fingerprint {{ cm_step_ca_fingerprint }}
+  when: not step_ca_bootstrapped.stat.exists
+
+- name: Check if wildcard certificate exists
+  ansible.builtin.stat:
+    path: "{{ cm_cert_file }}"
+  register: cert_exists
+
+- name: Check certificate expiry
+  ansible.builtin.shell: |
+    step-cli certificate inspect {{ cm_cert_file }} --format json | jq -r '.validity.end'
+  register: cert_expiry
+  when: cert_exists.stat.exists
+  changed_when: false
+  failed_when: false
+
+- name: Request wildcard certificate from step-ca
+  when: >
+    not cert_exists.stat.exists or
+    (cert_expiry.stdout is defined and
+     (cert_expiry.stdout | to_datetime('%Y-%m-%dT%H:%M:%SZ')) < (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ')))
+  block:
+    - name: Create temporary password file
+      ansible.builtin.copy:
+        content: "{{ cm_step_ca_provisioner_password }}"
+        dest: "/tmp/step-ca-password"
+        mode: "0600"
+      no_log: true
+
+    - name: Request wildcard certificate from step-ca
+      ansible.builtin.command: >
+        step-cli ca certificate "{{ cm_wildcard_domain }}"
+        {{ cm_cert_file }}
+        {{ cm_key_file }}
+        --provisioner {{ cm_step_ca_provisioner }}
+        --provisioner-password-file /tmp/step-ca-password
+        --force
+      register: cert_request
+      no_log: true
+
+    - name: Remove temporary password file
+      ansible.builtin.file:
+        path: "/tmp/step-ca-password"
+        state: absent
+
+- name: Copy CA certificate
+  ansible.builtin.copy:
+    src: "/root/.step/certs/root_ca.crt"
+    dest: "{{ cm_ca_file }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Create MinIO certificate symlinks
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+  loop:
+    - { src: "{{ cm_cert_file }}", dest: "{{ cm_minio_cert_file }}" }
+    - { src: "{{ cm_key_file }}", dest: "{{ cm_minio_key_file }}" }
+
+- name: Set certificate file permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ cm_cert_file }}", mode: "0644" }
+    - { path: "{{ cm_key_file }}", mode: "0600" }
+
+- name: Deploy step-ca renewal service
+  when: cm_cert_renewal_enabled
+  block:
+    - name: Deploy step-ca-renew-cm systemd service
+      ansible.builtin.template:
+        src: step-ca-renew.service.j2
+        dest: /etc/systemd/system/step-ca-renew-cm.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart step-ca-renew-cm
+
+    - name: Enable and start step-ca-renew-cm service
+      ansible.builtin.systemd:
+        name: step-ca-renew-cm
+        enabled: true
+        state: started
+        daemon_reload: true
