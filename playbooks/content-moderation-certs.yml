@@ -5,4 +5,4 @@
   roles:
     - role: content_moderation_certs
       vars:
-        cm_step_ca_provisioner_password: "{{ vector_step_ca_provisioner_password }}"
+        cm_step_ca_provisioner_password: "{{ cm_step_ca_provisioner_password }}"

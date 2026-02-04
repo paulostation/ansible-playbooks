@@ -14,10 +14,10 @@ cm_minio_key_file: "{{ cm_cert_dir }}/private.key"
 # Wildcard domain
 cm_wildcard_domain: "*.omarchy-mouse.prod.paulo.software.vpn"
 
-# step-ca settings (same as vector role)
-cm_step_ca_url: "https://ca.prod.paulo.software.vpn"
+# step-ca settings (standalone CA on stremio-rpi)
+cm_step_ca_url: "https://100.64.7.2:9443"
 cm_step_ca_fingerprint: "be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd"
-cm_step_ca_provisioner: "step-issuer"
+cm_step_ca_provisioner: "infra-admin"
 cm_step_ca_provisioner_password: ""  # Should be encrypted with SOPS
 
 # Certificate renewal daemon
