@@ -66,6 +66,8 @@
         step-cli ca certificate "{{ cm_wildcard_domain }}"
         {{ cm_cert_file }}
         {{ cm_key_file }}
+        --ca-url {{ cm_step_ca_url }}
+        --root /root/.step/certs/root_ca.crt
         --provisioner {{ cm_step_ca_provisioner }}
         --provisioner-password-file /tmp/step-ca-password
         --force

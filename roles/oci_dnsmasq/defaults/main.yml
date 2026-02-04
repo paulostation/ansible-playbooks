@@ -51,6 +51,8 @@ dnsmasq_hosts:
   # Mouse workstation
   - hostname: "mouse"
     ip: "100.64.7.8"
+  - hostname: "omarchy-mouse"
+    ip: "100.64.7.8"
 
 # DHCP disabled (we use static IPs on WireGuard)
 dnsmasq_dhcp_enabled: false
