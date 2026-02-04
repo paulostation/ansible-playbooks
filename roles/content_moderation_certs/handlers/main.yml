@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart step-ca-renew-cm
+  ansible.builtin.systemd:
+    name: step-ca-renew-cm
+    state: restarted
