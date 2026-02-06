@@ -3,6 +3,9 @@ set -e
 
 CONFIG_FILE="{{ kopia_config_dir }}/kopia.sops.yaml"
 
+# Disable HTTP/2 to work around Go HTTP/2 connection issues with Cloudflare R2
+export GODEBUG="http2client=0"
+
 # SOPS decryption setup
 {% if kopia_sops_method == "kms" %}
 # Using AWS KMS for SOPS decryption
@@ -29,6 +32,7 @@ echo "  Bucket: $BUCKET"
 kopia repository connect s3 \
   --bucket="$BUCKET" \
   --endpoint="$ENDPOINT" \
+  --region=auto \
   --access-key="$ACCESS_KEY" \
   --secret-access-key="$SECRET_KEY" \
   "$@"

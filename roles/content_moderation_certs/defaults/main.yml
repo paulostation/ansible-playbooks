@@ -6,6 +6,7 @@ cm_cert_dir: "/etc/ssl/content-moderation"
 cm_cert_file: "{{ cm_cert_dir }}/wildcard.crt"
 cm_key_file: "{{ cm_cert_dir }}/wildcard.key"
 cm_ca_file: "{{ cm_cert_dir }}/ca.crt"
+cm_ca_bundle_file: "{{ cm_cert_dir }}/ca-bundle.crt"  # Intermediate + Root CA for chain verification
 
 # MinIO expects specific names
 cm_minio_cert_file: "{{ cm_cert_dir }}/public.crt"
@@ -14,11 +15,14 @@ cm_minio_key_file: "{{ cm_cert_dir }}/private.key"
 # Wildcard domain
 cm_wildcard_domain: "*.omarchy-mouse.prod.paulo.software.vpn"
 
-# step-ca settings (same as vector role)
-cm_step_ca_url: "https://ca.prod.paulo.software.vpn"
+# step-ca settings (standalone CA on stremio-rpi)
+cm_step_ca_url: "https://100.64.7.2:9443"
 cm_step_ca_fingerprint: "be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd"
-cm_step_ca_provisioner: "step-issuer"
+cm_step_ca_provisioner: "infra-admin"
 cm_step_ca_provisioner_password: ""  # Should be encrypted with SOPS
+
+# Certificate duration (must be within provisioner's maxTLSCertDuration)
+cm_cert_duration: "720h"
 
 # Certificate renewal daemon
 cm_cert_renewal_enabled: true

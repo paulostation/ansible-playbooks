@@ -66,11 +66,15 @@
         step-cli ca certificate "{{ cm_wildcard_domain }}"
         {{ cm_cert_file }}
         {{ cm_key_file }}
+        --ca-url {{ cm_step_ca_url }}
+        --root /root/.step/certs/root_ca.crt
         --provisioner {{ cm_step_ca_provisioner }}
         --provisioner-password-file /tmp/step-ca-password
+        --not-after {{ cm_cert_duration }}
         --force
       register: cert_request
       no_log: true
+      notify: Restart step-ca-renew-cm
 
     - name: Remove temporary password file
       ansible.builtin.file:
@@ -86,9 +90,26 @@
     group: root
     mode: "0644"
 
-- name: Create MinIO certificate symlinks
+- name: Create CA bundle (intermediate + root) for full chain verification
+  ansible.builtin.shell: |
+    # Extract intermediate CA from the cert chain (second cert in wildcard.crt)
+    csplit -f /tmp/cert-split- -s {{ cm_cert_file }} '/-----BEGIN CERTIFICATE-----/' '{*}'
+    # Combine intermediate (cert-split-02) + root CA into bundle
+    cat /tmp/cert-split-02 {{ cm_ca_file }} > {{ cm_ca_bundle_file }}
+    rm -f /tmp/cert-split-*
+  args:
+    creates: "{{ cm_ca_bundle_file }}"
+
+- name: Set CA bundle permissions
   ansible.builtin.file:
-    src: "{{ item.src }}"
+    path: "{{ cm_ca_bundle_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Create MinIO certificate symlinks (relative for Docker compatibility)
+  ansible.builtin.file:
+    src: "{{ item.src | basename }}"
     dest: "{{ item.dest }}"
     state: link
   loop:
@@ -103,7 +124,8 @@
     mode: "{{ item.mode }}"
   loop:
     - { path: "{{ cm_cert_file }}", mode: "0644" }
-    - { path: "{{ cm_key_file }}", mode: "0600" }
+    # Key is 0644 to allow container processes (Grafana, etc.) to read it
+    - { path: "{{ cm_key_file }}", mode: "0644" }
 
 - name: Deploy step-ca renewal service
   when: cm_cert_renewal_enabled

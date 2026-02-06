@@ -3,10 +3,27 @@
   hosts: all
 
   roles:
+    - role: chezmoi
+      become: true
+      tags:
+        - dev
+        - chezmoi
+
+    - role: asdf_cli
+      become: true
+      tags:
+        - dev
+        - asdf
+
     - role: dev.utils
       become: true
       tags:
         - dev
+
+    - role: claude_code
+      tags:
+        - dev
+        - claude
 
     - role: yazi
       tags:
@@ -24,23 +41,6 @@
       tags:
         - dev
         - vscode
-
-    - role: chezmoi
-      become: true
-      tags:
-        - dev
-        - chezmoi
-
-    - role: asdf_cli
-      become: true
-      tags:
-        - dev
-        - asdf
-
-    - role: claude_code
-      tags:
-        - dev
-        - claude
 
     # - role: cloudalchemy.node_exporter
     #   become: true

@@ -30,8 +30,9 @@
 
 - name: Ensure SOPS age key directory exists
   ansible.builtin.file:
-    path: "{{ kopia_sops_age_key_file | dirname }}"
+    path: "/home/{{ ansible_user }}/.config/sops/age"
     state: directory
+    owner: "{{ ansible_user }}"
     mode: '0700'
 
 - name: Check for .sops.yaml (managed by chezmoi)
