@@ -9,7 +9,11 @@ Wants=network-online.target
 Type=simple
 User=root
 Group=root
-ExecStart=/usr/bin/step-cli ca renew --daemon {{ cm_cert_file }} {{ cm_key_file }}
+ExecStart=/usr/bin/step-cli ca renew \
+    --daemon \
+    --expires-in 8h \
+    --force \
+    {{ cm_cert_file }} {{ cm_key_file }}
 Restart=always
 RestartSec=10
 
