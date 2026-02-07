@@ -15,7 +15,7 @@ argocd_server_insecure: true  # TLS terminated at ingress
 # Ingress configuration
 argocd_ingress_enabled: true
 argocd_ingress_class: "nginx"
-argocd_ingress_host: "argocd.prod.paulo.software.vpn"
+argocd_ingress_host: "argocd.paulo.software.vpn"
 argocd_ingress_tls_enabled: true
 argocd_ingress_tls_secret: "argocd-tls"
 

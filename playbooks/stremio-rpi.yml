@@ -14,7 +14,7 @@
     wireguard_server_pubkey: "{{ oci_wireguard_pubkey }}"
 
     # ArgoCD configuration
-    argocd_ingress_host: "argocd.prod.paulo.software.vpn"
+    argocd_ingress_host: "argocd.paulo.software.vpn"
 
   pre_tasks:
     - name: Update apt cache

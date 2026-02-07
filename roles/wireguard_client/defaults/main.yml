@@ -22,7 +22,7 @@ wireguard_dns: "100.64.7.1"
 
 # DNS domains for split DNS (only route these domains through VPN DNS)
 # If set, uses PostUp/PostDown with resolvectl instead of wg-quick DNS
-# Example: ["prod.paulo.software.vpn", "7.64.100.in-addr.arpa"]
+# Example: ["paulo.software.vpn", "7.64.100.in-addr.arpa"]
 wireguard_dns_domains: []
 
 # Persistent keepalive for NAT traversal

@@ -51,7 +51,7 @@
             Endpoint: {{ ansible_host }}:51820
 
           DNS:
-            Domain: prod.paulo.software.vpn
+            Domain: paulo.software.vpn
             Resolver: 100.64.7.1
 
           Peers to configure:
