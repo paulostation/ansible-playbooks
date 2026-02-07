@@ -39,5 +39,12 @@ cache-size={{ dnsmasq_cache_size }}
 log-queries
 {% endif %}
 
+{% if dnsmasq_wildcard_hosts is defined and dnsmasq_wildcard_hosts | length > 0 %}
+# Wildcard DNS records
+{% for wc in dnsmasq_wildcard_hosts %}
+address=/.{{ wc.subdomain }}.{{ dnsmasq_domain }}/{{ wc.ip }}
+{% endfor %}
+{% endif %}
+
 # Don't use /etc/hosts
 no-hosts

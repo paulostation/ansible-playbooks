@@ -51,6 +51,18 @@ dnsmasq_hosts:
   # Mouse workstation
   - hostname: "mouse"
     ip: "100.64.7.8"
+  - hostname: "omarchy-mouse"
+    ip: "100.64.7.8"
+
+  # Pi 4 devbox
+  - hostname: "rpi-devbox"
+    ip: "100.64.7.5"
+
+# Wildcard DNS records (address=/.subdomain.domain/ip)
+# Resolves *.subdomain.domain to the given IP
+dnsmasq_wildcard_hosts:
+  - subdomain: "omarchy-mouse"
+    ip: "100.64.7.8"
 
 # DHCP disabled (we use static IPs on WireGuard)
 dnsmasq_dhcp_enabled: false
