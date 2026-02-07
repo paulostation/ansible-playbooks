@@ -1,0 +1,70 @@
+---
+# config_loader: Load tiered values from the prod-values config store.
+#
+# Merge hierarchy (later wins):
+#   Tier 1: values.yaml                                    (global defaults)
+#   Tier 2: <env>/values.yaml                              (environment overrides)
+#   Tier 2.5: group_vars from <env>/values.yaml            (group-level, flattened)
+#   Tier 3: <env>/secrets.sops.yaml                        (environment secrets, SOPS-decrypted)
+#   Tier 3.5: group secrets from <env>/secrets.sops.yaml   (group secrets, flattened)
+#   Tier 4: <env>/<hostname>/values.yaml                   (host overrides)
+#   Tier 5: <env>/<hostname>/ansible.sops.yaml             (host secrets, SOPS-decrypted)
+#
+# SOPS decryption is handled by the community.sops.sops vars plugin
+# (enabled in ansible.cfg). include_vars transparently decrypts .sops files.
+#
+# When config_store_path is empty, all tasks are skipped and Ansible
+# falls back to traditional group_vars/host_vars/role defaults.
+
+- name: Config store loading
+  when: config_store_path | length > 0
+  block:
+
+    # --- Tier 1: Global values (shared with Helm) ---
+    - name: Load global values
+      ansible.builtin.include_vars:
+        file: "{{ config_store_path }}/values.yaml"
+
+    # --- Tier 2: Environment values (shared with Helm) ---
+    - name: Load environment values
+      ansible.builtin.include_vars:
+        file: "{{ config_store_path }}/{{ config_environment }}/values.yaml"
+
+    # --- Tier 2.5: Flatten group values into variable space ---
+    - name: Apply group-level values
+      ansible.builtin.set_fact: "{{ group_vars[item] }}"
+      loop: "{{ group_names }}"
+      when:
+        - group_vars is defined
+        - item in group_vars
+        - group_vars[item] is mapping
+        - group_vars[item] | length > 0
+
+    # --- Tier 3: Environment secrets (SOPS-encrypted) ---
+    - name: Load environment secrets
+      ansible.builtin.include_vars:
+        file: "{{ config_store_path }}/{{ config_environment }}/secrets.sops.yaml"
+      failed_when: false
+
+    # --- Tier 3.5: Flatten group secrets into variable space ---
+    - name: Apply group-level secrets
+      ansible.builtin.set_fact: "{{ group_vars[item] }}"
+      loop: "{{ group_names }}"
+      when:
+        - group_vars is defined
+        - item in group_vars
+        - group_vars[item] is mapping
+        - group_vars[item] | length > 0
+      no_log: true
+
+    # --- Tier 4: Host values (may not exist for every host) ---
+    - name: Load host values
+      ansible.builtin.include_vars:
+        file: "{{ config_store_path }}/{{ config_environment }}/{{ inventory_hostname }}/values.yaml"
+      failed_when: false
+
+    # --- Tier 5: Host secrets (SOPS-encrypted) ---
+    - name: Load host secrets
+      ansible.builtin.include_vars:
+        file: "{{ config_store_path }}/{{ config_environment }}/{{ inventory_hostname }}/ansible.sops.yaml"
+      failed_when: false

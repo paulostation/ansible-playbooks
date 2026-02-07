@@ -1,0 +1,12 @@
+---
+# config_loader role defaults
+#
+# Set config_store_path to the local checkout of prod-values to enable
+# tiered value loading. Leave empty to skip (standalone mode).
+#
+# Example:
+#   config_store_path: "../prod-values"
+#   config_store_path: "{{ lookup('env', 'CONFIG_STORE') }}"
+
+config_store_path: ""
+config_environment: production
