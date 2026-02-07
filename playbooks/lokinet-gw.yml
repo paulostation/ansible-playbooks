@@ -18,6 +18,10 @@
     private_network_name: loki-network-{{ vm_group_suffix }}
     ssh_pub_key: "/home/paulosf/.ssh/id_rsa.pub"
 
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   tasks:
     - name: Provision gateway VM
       include_role:

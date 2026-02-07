@@ -2,6 +2,10 @@
 - name: Playbook to install lokinet vpn
   hosts: "{{ target_host }}"
   gather_facts: true
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   tasks:
 
     #- debug: var=hostvars

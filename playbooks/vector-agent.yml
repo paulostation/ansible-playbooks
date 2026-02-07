@@ -15,5 +15,9 @@
   become: true
   gather_facts: true
 
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   roles:
     - role: vector

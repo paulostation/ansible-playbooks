@@ -10,8 +10,8 @@
 #   Tier 4: <env>/<hostname>/values.yaml                   (host overrides)
 #   Tier 5: <env>/<hostname>/ansible.sops.yaml             (host secrets, SOPS-decrypted)
 #
-# SOPS decryption is handled by the community.sops.sops vars plugin
-# (enabled in ansible.cfg). include_vars transparently decrypts .sops files.
+# SOPS files are loaded via community.sops.load_vars, which decrypts
+# on the fly. Plain YAML files use ansible.builtin.include_vars.
 #
 # When config_store_path is empty, all tasks are skipped and Ansible
 # falls back to traditional group_vars/host_vars/role defaults.
@@ -42,7 +42,7 @@
 
     # --- Tier 3: Environment secrets (SOPS-encrypted) ---
     - name: Load environment secrets
-      ansible.builtin.include_vars:
+      community.sops.load_vars:
         file: "{{ config_store_path }}/{{ config_environment }}/secrets.sops.yaml"
       failed_when: false
 
@@ -65,6 +65,40 @@
 
     # --- Tier 5: Host secrets (SOPS-encrypted) ---
     - name: Load host secrets
-      ansible.builtin.include_vars:
+      community.sops.load_vars:
         file: "{{ config_store_path }}/{{ config_environment }}/{{ inventory_hostname }}/ansible.sops.yaml"
       failed_when: false
+
+    # --- Map config-store keys to Ansible connection vars ---
+    # Config store uses unprefixed names (ssh_user, ssh_host, etc.) to avoid
+    # load_vars restrictions on ansible_* keys. Map them here.
+    - name: Map connection variables
+      ansible.builtin.set_fact:
+        ansible_user: "{{ ssh_user }}"
+      when: ssh_user is defined
+
+    - name: Map connection host
+      ansible.builtin.set_fact:
+        ansible_host: "{{ ssh_host }}"
+      when: ssh_host is defined
+
+    - name: Map connection extras
+      ansible.builtin.set_fact:
+        ansible_become_pass: "{{ become_pass }}"
+      when: become_pass is defined
+      no_log: true
+
+    - name: Map SSH args
+      ansible.builtin.set_fact:
+        ansible_ssh_common_args: "{{ ssh_common_args }}"
+      when: ssh_common_args is defined
+
+    - name: Map Python interpreter
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ python_interpreter }}"
+      when: python_interpreter is defined
+
+    - name: Map connection type
+      ansible.builtin.set_fact:
+        ansible_connection: "{{ connection_type }}"
+      when: connection_type is defined

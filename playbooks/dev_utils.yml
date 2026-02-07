@@ -2,6 +2,10 @@
 - name: playbook de teste
   hosts: all
 
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   roles:
     - role: dev.utils
       become: true

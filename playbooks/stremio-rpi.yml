@@ -17,6 +17,9 @@
     argocd_ingress_host: "argocd.paulo.software.vpn"
 
   pre_tasks:
+    - include_role:
+        name: config_loader
+
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true

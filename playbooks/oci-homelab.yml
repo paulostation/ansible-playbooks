@@ -21,6 +21,9 @@
         allowed_ips: "100.64.7.4/32"
 
   pre_tasks:
+    - include_role:
+        name: config_loader
+
     - name: Wait for cloud-init to complete
       ansible.builtin.command: cloud-init status --wait
       changed_when: false

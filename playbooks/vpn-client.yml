@@ -17,6 +17,9 @@
     wireguard_server_pubkey: "BXvA2JxzjDz8CiYWQgc+jnPlf/8lpsfTHTNR6LMPv0E="
 
   pre_tasks:
+    - include_role:
+        name: config_loader
+
     - name: Validate required variables
       ansible.builtin.assert:
         that:

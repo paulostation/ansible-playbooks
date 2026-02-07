@@ -2,5 +2,9 @@
 - name: Setup PXE Boot Server
   hosts: all
   become: yes
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   roles:
     - pxe_server

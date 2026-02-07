@@ -11,6 +11,10 @@
     net: default
     ssh_pub_key: "/home/paulosf/.ssh/id_rsa.pub"
 
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   tasks:
 
     - name: Provision client VM

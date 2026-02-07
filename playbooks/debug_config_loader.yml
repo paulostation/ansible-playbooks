@@ -1,0 +1,58 @@
+---
+# Debug playbook: verify config_loader tiered value loading
+# Usage: ansible-playbook playbooks/debug_config_loader.yml -e config_store_path=../prod-values -l localhost
+
+- hosts: all
+  gather_facts: false
+  vars:
+    config_store_path: "{{ lookup('env', 'CONFIG_STORE') | default('', true) }}"
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
+  tasks:
+    - name: "Tier 1 — Global values (from values.yaml)"
+      ansible.builtin.debug:
+        msg:
+          domain: "{{ domain | default('NOT SET') }}"
+          timezone: "{{ timezone | default('NOT SET') }}"
+          ssh_user: "{{ ssh_user | default('NOT SET') }}"
+          ansible_user_mapped: "{{ ansible_user | default('NOT SET') }}"
+          chezmoi_repo_url: "{{ chezmoi_repo_url | default('NOT SET') }}"
+          vpn_network: "{{ vpn.network | default('NOT SET') }}"
+          vpn_peers_count: "{{ vpn.peers | default([]) | length }}"
+          pki_ca_fingerprint: "{{ pki.ca_fingerprint | default('NOT SET') }}"
+          dns_upstream: "{{ dns.upstream | default('NOT SET') }}"
+
+    - name: "Tier 2 — Environment values (from production/values.yaml)"
+      ansible.builtin.debug:
+        msg:
+          group: "{{ group | default('NOT SET') }}"
+          tls_issuer: "{{ tls.issuer | default('NOT SET') }}"
+
+    - name: "Tier 2.5 — Group values (flattened from group_vars namespace)"
+      ansible.builtin.debug:
+        msg:
+          vector_mtls_enabled: "{{ vector_mtls_enabled | default('NOT SET') }}"
+          vector_aggregator_address: "{{ vector_aggregator_address | default('NOT SET') }}"
+          vector_step_ca_url: "{{ vector_step_ca_url | default('NOT SET') }}"
+          default_network_gateway: "{{ default_network_gateway | default('NOT SET') }}"
+      when: group_names | intersect(['vector_agents', 'home']) | length > 0
+
+    - name: "Tier 3 — Environment secrets (from production/secrets.sops.yaml)"
+      ansible.builtin.debug:
+        msg:
+          kopia_endpoint: "{{ kopia_endpoint | default('NOT SET') }}"
+          kopia_bucket: "{{ kopia_bucket | default('NOT SET') }}"
+      no_log: false
+
+    - name: "Tier 4+5 — Host values + secrets"
+      ansible.builtin.debug:
+        msg:
+          ssh_user: "{{ ssh_user | default('NOT SET') }}"
+          ansible_user_mapped: "{{ ansible_user | default('NOT SET') }}"
+          chezmoi_auto_init: "{{ chezmoi_auto_init | default('NOT SET') }}"
+
+    - name: "Summary"
+      ansible.builtin.debug:
+        msg: "Config loader working. {{ (config_store_path | length > 0) | ternary('Loaded from: ' + config_store_path, 'Standalone mode (no config store)') }}"

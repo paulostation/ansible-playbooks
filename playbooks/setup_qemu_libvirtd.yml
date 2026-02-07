@@ -2,6 +2,10 @@
 - name: Setup QEMU and Libvirtd
   hosts: all
 
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   roles:
     - role: qemu-kvm
       tags:

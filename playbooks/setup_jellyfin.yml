@@ -1,6 +1,10 @@
 ---
 - name: Setup neovim
   hosts: all
+  pre_tasks:
+    - include_role:
+        name: config_loader
+
   roles:
     - role: jellyfin
       tags:
