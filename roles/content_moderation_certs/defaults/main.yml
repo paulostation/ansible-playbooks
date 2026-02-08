@@ -12,12 +12,12 @@ cm_minio_cert_file: "{{ cm_cert_dir }}/public.crt"
 cm_minio_key_file: "{{ cm_cert_dir }}/private.key"
 
 # Wildcard domain
-cm_wildcard_domain: "*.omarchy-mouse.paulo.software.vpn"
+cm_wildcard_domain: "*.omarchy-mouse.{{ domain | default('paulo.software.vpn') }}"
 
 # step-ca settings (same as vector role)
-cm_step_ca_url: "https://ca.paulo.software.vpn"
-cm_step_ca_fingerprint: "be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd"
-cm_step_ca_provisioner: "step-issuer"
+cm_step_ca_url: "https://ca.{{ domain | default('paulo.software.vpn') }}"
+cm_step_ca_fingerprint: "{{ pki.ca_fingerprint | default('be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd') }}"
+cm_step_ca_provisioner: "{{ pki.tls_issuer | default('step-issuer') }}"
 cm_step_ca_provisioner_password: ""  # Should be encrypted with SOPS
 
 # Certificate renewal daemon

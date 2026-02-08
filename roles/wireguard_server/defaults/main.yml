@@ -2,16 +2,16 @@
 # WireGuard Server Role - Defaults
 
 # Network configuration
-wireguard_interface: wg0
-wireguard_port: 51820
-wireguard_network: "100.64.7.0/24"
-wireguard_server_ip: "100.64.7.1"
+wireguard_interface: "{{ vpn.interface | default('wg0') }}"
+wireguard_port: "{{ vpn.port | default(51820) }}"
+wireguard_network: "{{ vpn.network | default('100.64.7.0/24') }}"
+wireguard_server_ip: "{{ vpn.server_ip | default('100.64.7.1') }}"
 
 # DNS settings (server will provide DNS to clients)
 wireguard_dns_enabled: true
 
 # Persistent keepalive for NAT traversal (seconds, 0 to disable)
-wireguard_keepalive: 25
+wireguard_keepalive: "{{ vpn.keepalive | default(25) }}"
 
 # Enable IP forwarding
 wireguard_ip_forward: true

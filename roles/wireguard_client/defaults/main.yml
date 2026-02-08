@@ -15,10 +15,10 @@ wireguard_server_pubkey: ""  # Required: set in host_vars
 
 # Allowed IPs (what to route through VPN)
 # Default: only VPN network (split tunnel)
-wireguard_allowed_ips: "100.64.7.0/24"
+wireguard_allowed_ips: "{{ vpn.network | default('100.64.7.0/24') }}"
 
 # DNS server (VPN's DNS) - leave empty to skip VPN DNS
-wireguard_dns: "100.64.7.1"
+wireguard_dns: "{{ vpn.server_ip | default('100.64.7.1') }}"
 
 # DNS domains for split DNS (only route these domains through VPN DNS)
 # If set, uses PostUp/PostDown with resolvectl instead of wg-quick DNS
@@ -26,4 +26,4 @@ wireguard_dns: "100.64.7.1"
 wireguard_dns_domains: []
 
 # Persistent keepalive for NAT traversal
-wireguard_keepalive: 25
+wireguard_keepalive: "{{ vpn.keepalive | default(25) }}"

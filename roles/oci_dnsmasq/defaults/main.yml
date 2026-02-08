@@ -2,7 +2,7 @@
 # OCI Dnsmasq Role - Defaults
 
 # DNS domain for internal resolution
-dnsmasq_domain: "paulo.software.vpn"
+dnsmasq_domain: "{{ domain | default('paulo.software.vpn') }}"
 
 # Listen interfaces
 dnsmasq_listen_interfaces:
@@ -10,9 +10,7 @@ dnsmasq_listen_interfaces:
   - lo
 
 # Upstream DNS servers
-dnsmasq_upstream_dns:
-  - 1.1.1.1
-  - 8.8.8.8
+dnsmasq_upstream_dns: "{{ dns.upstream | default(['1.1.1.1', '8.8.8.8']) }}"
 
 # Local DNS records
 dnsmasq_hosts:
@@ -68,7 +66,7 @@ dnsmasq_wildcard_hosts:
 dnsmasq_dhcp_enabled: false
 
 # Cache size
-dnsmasq_cache_size: 1000
+dnsmasq_cache_size: "{{ dns.cache_size | default(1000) }}"
 
 # Log queries for debugging
 dnsmasq_log_queries: false

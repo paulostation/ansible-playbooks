@@ -15,13 +15,13 @@ argocd_server_insecure: true  # TLS terminated at ingress
 # Ingress configuration
 argocd_ingress_enabled: true
 argocd_ingress_class: "nginx"
-argocd_ingress_host: "argocd.paulo.software.vpn"
+argocd_ingress_host: "argocd.{{ domain | default('paulo.software.vpn') }}"
 argocd_ingress_tls_enabled: true
 argocd_ingress_tls_secret: "argocd-tls"
 
 # Use step-ca for certificates (cert-manager with step issuer)
 argocd_cert_manager_enabled: true
-argocd_cert_manager_issuer: "step-issuer"
+argocd_cert_manager_issuer: "{{ pki.tls_issuer | default('step-issuer') }}"
 argocd_cert_manager_issuer_kind: "ClusterIssuer"
 
 # RBAC - simple local admin (no OIDC for homelab)
