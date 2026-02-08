@@ -8,13 +8,9 @@
   gather_facts: false
 
   vars:
-    # WireGuard client configuration
-    wireguard_client_ip: "100.64.7.2"
-    wireguard_server_endpoint: "{{ oci_public_ip }}:51820"
-    wireguard_server_pubkey: "{{ oci_wireguard_pubkey }}"
-
-    # ArgoCD configuration
-    argocd_ingress_host: "argocd.paulo.software.vpn"
+    wireguard_server_endpoint: "{{ vpn.server_endpoint | default('vpn.paulo.software:51820') }}"
+    wireguard_server_pubkey: "{{ vpn_server_pubkey | default('BXvA2JxzjDz8CiYWQgc+jnPlf/8lpsfTHTNR6LMPv0E=') }}"
+    argocd_ingress_host: "argocd.{{ domain | default('paulo.software.vpn') }}"
 
   pre_tasks:
     - include_role:

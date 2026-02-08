@@ -7,37 +7,17 @@
   become: true
   gather_facts: false
 
-  vars:
-    # WireGuard peers
-    wireguard_peers:
-      - name: desktop
-        public_key: "{{ desktop_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.3/32"
-      - name: rpi
-        public_key: "{{ rpi_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.2/32"
-      - name: phone
-        public_key: "{{ phone_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.4/32"
-      - name: asus-tuf
-        public_key: "{{ asus_tuf_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.6/32"
-      - name: omarchy-pc-do-b
-        public_key: "{{ omarchy_pc_do_b_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.7/32"
-      - name: mouse
-        public_key: "{{ mouse_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.8/32"
-      - name: oci-vmetrics
-        public_key: "{{ oci_vmetrics_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.9/32"
-      - name: rpi4-devbox
-        public_key: "{{ rpi4_devbox_wireguard_pubkey }}"
-        allowed_ips: "100.64.7.5/32"
-
   pre_tasks:
     - include_role:
         name: config_loader
+
+    - name: Build WireGuard peers list from config store
+      vars:
+        _peer_pubkeys: "{{ group_vars.aws_vpn_hub.vpn_peer_pubkeys | default(vpn_peer_pubkeys | default({})) }}"
+      ansible.builtin.set_fact:
+        wireguard_peers: "{{ wireguard_peers | default([]) + [{'name': item.name, 'public_key': _peer_pubkeys[item.name], 'allowed_ips': item.ip ~ '/32'}] }}"
+      loop: "{{ vpn.peers }}"
+      when: _peer_pubkeys | length > 0 and item.name in _peer_pubkeys
 
     - name: Wait for cloud-init to complete
       ansible.builtin.command: cloud-init status --wait
@@ -65,18 +45,17 @@
           =====================================================
 
           WireGuard Hub:
-            Server IP: 100.64.7.1
-            Endpoint: vpn.paulo.software:51820 ({{ ansible_host }})
+            Server IP: {{ vpn.server_ip }}
+            Endpoint: {{ vpn.server_endpoint | default(ansible_host ~ ':' ~ vpn.port) }}
 
           DNS:
-            Domain: paulo.software.vpn
-            Resolver: 100.64.7.1
+            Domain: {{ domain }}
+            Resolver: {{ vpn.server_ip }}
 
-          Peers to configure:
-            - Desktop: 100.64.7.3
-            - Pi 5: 100.64.7.2
-            - Phone: 100.64.7.4
-            - ASUS TUF: 100.64.7.6
+          Peers configured: {{ wireguard_peers | length }}
+          {% for peer in wireguard_peers %}
+            - {{ peer.name }}: {{ peer.allowed_ips }}
+          {% endfor %}
 
           Server Public Key (for client configs):
             Run: sudo cat /etc/wireguard/publickey

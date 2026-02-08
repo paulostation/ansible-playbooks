@@ -12,9 +12,8 @@
   gather_facts: false
 
   vars:
-    # VPN Hub details (can be overridden per host)
-    wireguard_server_endpoint: "vpn.paulo.software:51820"
-    wireguard_server_pubkey: "BXvA2JxzjDz8CiYWQgc+jnPlf/8lpsfTHTNR6LMPv0E="
+    wireguard_server_endpoint: "{{ vpn.server_endpoint | default('vpn.paulo.software:51820') }}"
+    wireguard_server_pubkey: "{{ vpn_server_pubkey | default('BXvA2JxzjDz8CiYWQgc+jnPlf/8lpsfTHTNR6LMPv0E=') }}"
 
   pre_tasks:
     - include_role:
@@ -49,6 +48,6 @@
             sudo wg show
 
           To test connectivity:
-            ping 100.64.7.1  (VPN hub)
+            ping {{ vpn.server_ip | default('100.64.7.1') }}  (VPN hub)
 
           =====================================================

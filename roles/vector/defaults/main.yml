@@ -9,7 +9,7 @@ vector_config_dir: "/etc/vector"
 vector_data_dir: "/var/lib/vector"
 
 # Aggregator connection settings
-vector_aggregator_address: "stremio-rpi.paulo.software.vpn:31600"
+vector_aggregator_address: "stremio-rpi.{{ domain | default('paulo.software.vpn') }}:31600"
 vector_aggregator_version: "2"
 
 # mTLS configuration
@@ -22,9 +22,9 @@ vector_verify_certificate: true
 vector_verify_hostname: false
 
 # step-ca settings (when mTLS enabled)
-vector_step_ca_url: "https://ca.paulo.software.vpn"
-vector_step_ca_fingerprint: "be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd"
-vector_step_ca_provisioner: "step-issuer"
+vector_step_ca_url: "https://ca.{{ domain | default('paulo.software.vpn') }}"
+vector_step_ca_fingerprint: "{{ pki.ca_fingerprint | default('be921cc774c02bf56cc7c518e24a3ff426bda3caa0215de797bbc6d6f9e961cd') }}"
+vector_step_ca_provisioner: "{{ pki.tls_issuer | default('step-issuer') }}"
 vector_step_ca_provisioner_password: ""  # Should be encrypted with SOPS
 
 # Certificate renewal daemon
