@@ -1,6 +1,7 @@
 ---
 - name: playbook de teste
   hosts: all
+  gather_facts: false
 
   pre_tasks:
     - include_role:

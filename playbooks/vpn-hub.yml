@@ -5,7 +5,7 @@
 - name: Configure VPN Hub
   hosts: aws_vpn_hub
   become: true
-  gather_facts: true
+  gather_facts: false
 
   vars:
     # WireGuard peers

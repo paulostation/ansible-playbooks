@@ -102,3 +102,10 @@
       ansible.builtin.set_fact:
         ansible_connection: "{{ connection_type }}"
       when: connection_type is defined
+
+# --- Gather facts after connection vars are mapped ---
+# Playbooks must set gather_facts: false so that Ansible doesn't try to
+# SSH before config_loader has set ansible_host/ansible_user.
+- name: Gather facts
+  ansible.builtin.setup:
+  when: config_loader_gather_facts | default(true)

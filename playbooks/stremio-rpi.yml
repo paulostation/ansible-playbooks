@@ -5,7 +5,7 @@
 - name: Configure Stremio RPi (Pi 5)
   hosts: stremio-rpi
   become: true
-  gather_facts: true
+  gather_facts: false
 
   vars:
     # WireGuard client configuration

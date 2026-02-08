@@ -1,6 +1,6 @@
 - name: Deploys VM based on cloud image
   hosts: localhost
-  gather_facts: true
+  gather_facts: false
   strategy: linear  # Set the strategy to linear
   become: false
   vars:

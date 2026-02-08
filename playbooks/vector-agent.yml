@@ -13,7 +13,7 @@
 - name: Deploy Vector log shipping agent
   hosts: vector_agents
   become: true
-  gather_facts: true
+  gather_facts: false
 
   pre_tasks:
     - include_role:

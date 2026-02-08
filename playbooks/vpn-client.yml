@@ -9,7 +9,7 @@
 - name: Configure VPN Client
   hosts: "{{ target_hosts | default('all') }}"
   become: true
-  gather_facts: true
+  gather_facts: false
 
   vars:
     # VPN Hub details (can be overridden per host)

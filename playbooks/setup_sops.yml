@@ -9,7 +9,7 @@
 
 - name: Setup SOPS encryption
   hosts: all
-  gather_facts: yes
+  gather_facts: false
 
   pre_tasks:
     - include_role:

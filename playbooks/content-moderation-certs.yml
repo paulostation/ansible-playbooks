@@ -2,6 +2,7 @@
 - name: Deploy Content Moderation Pipeline certificates
   hosts: omarchy-mouse
   become: true
+  gather_facts: false
   pre_tasks:
     - include_role:
         name: config_loader
