@@ -41,10 +41,20 @@
         - group_vars[item] | length > 0
 
     # --- Tier 3: Environment secrets (SOPS-encrypted) ---
+    # Load into a namespace first, then re-apply with set_fact so that
+    # secrets reliably override include_vars from earlier tiers.
     - name: Load environment secrets
       community.sops.load_vars:
         file: "{{ config_store_path }}/{{ config_environment }}/secrets.sops.yaml"
+        name: _env_secrets
       failed_when: false
+
+    - name: Apply environment secrets
+      ansible.builtin.set_fact:
+        "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ _env_secrets | default({}) | dict2items }}"
+      when: _env_secrets is defined and _env_secrets is mapping and _env_secrets | length > 0
+      no_log: true
 
     # --- Tier 3.5: Flatten group secrets into variable space ---
     - name: Apply group-level secrets
@@ -64,10 +74,20 @@
       failed_when: false
 
     # --- Tier 5: Host secrets (SOPS-encrypted) ---
+    # Load into a namespace first, then re-apply with set_fact so that
+    # host secrets reliably override include_vars from earlier tiers.
     - name: Load host secrets
       community.sops.load_vars:
         file: "{{ config_store_path }}/{{ config_environment }}/{{ inventory_hostname }}/ansible.sops.yaml"
+        name: _host_secrets
       failed_when: false
+
+    - name: Apply host secrets
+      ansible.builtin.set_fact:
+        "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ _host_secrets | default({}) | dict2items }}"
+      when: _host_secrets is defined and _host_secrets is mapping and _host_secrets | length > 0
+      no_log: true
 
     # --- Map config-store keys to Ansible connection vars ---
     # Config store uses unprefixed names (ssh_user, ssh_host, etc.) to avoid
