@@ -59,6 +59,8 @@ dnsmasq_hosts:
 # Wildcard DNS records (address=/.subdomain.domain/ip)
 # Resolves *.subdomain.domain to the given IP
 dnsmasq_wildcard_hosts:
+  - subdomain: "stremio-rpi"
+    ip: "100.64.7.2"
   - subdomain: "omarchy-mouse"
     ip: "100.64.7.8"
 
