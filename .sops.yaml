@@ -1,18 +1,24 @@
 # SOPS configuration file
-# Uses both age and AWS KMS encryption for redundancy
+# Uses both age keys and AWS KMS encryption for redundancy
 
 creation_rules:
   # Match any .sops.yml file in host_vars or group_vars
   - path_regex: .*(host_vars|group_vars)/.*\.sops\.(yml|yaml)$
-    age: age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk
+    age: >-
+      age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk,
+      age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
     kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
 
   # Match group_vars/all for kopia secrets
   - path_regex: group_vars/all/.*\.sops\.(yml|yaml)$
-    age: age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk
+    age: >-
+      age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk,
+      age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
     kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
 
   # Fallback for any .sops.yml file
   - path_regex: .*\.sops\.(yml|yaml)$
-    age: age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk
+    age: >-
+      age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk,
+      age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
     kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310

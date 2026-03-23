@@ -52,7 +52,7 @@ define ansible_env
 	export AWS_PROFILE=$(AWS_PROFILE)
 endef
 
-.PHONY: help setup setup-sops run dev nvim vpn-hub vpn-client networking users syncthing docker pxe edit edit-group clean
+.PHONY: help install setup setup-sops run dev nvim vpn-hub vpn-client networking users syncthing docker pxe edit edit-group clean
 
 help:
 	@echo "Available targets:"
@@ -85,14 +85,18 @@ help:
 	@echo "  make edit HOST=mouse"
 	@echo "  make edit-group GROUP=home"
 
-setup:
-	@echo "Creating virtual environment..."
-	python3 -m venv $(VENV)
+install:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Creating virtual environment..."; \
+		python3 -m venv $(VENV); \
+	fi
 	source $(VENV)/bin/activate && pip install --upgrade pip
 	source $(VENV)/bin/activate && pip install ansible
 	source $(VENV)/bin/activate && ansible-galaxy collection install -r requirements.yml
 	source $(VENV)/bin/activate && ansible-galaxy collection install community.sops community.general
-	@echo "Setup complete!"
+	@echo "Install complete!"
+
+setup: install
 
 setup-sops:
 	$(ansible_env) && \
