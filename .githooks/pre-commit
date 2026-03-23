@@ -1,7 +1,8 @@
 #!/bin/bash
-# Pre-commit hook: verify all SOPS files have all required AGE recipients
+# Pre-commit hook: verify all SOPS files have all required recipients
 #
-# Prevents committing SOPS files encrypted for only one machine.
+# Prevents committing SOPS files that can't be decrypted by all machines.
+# Every SOPS file must have both AGE keys AND the KMS key.
 
 set -euo pipefail
 
@@ -9,6 +10,8 @@ REQUIRED_AGE_KEYS=(
   "age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk"
   "age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g"
 )
+
+REQUIRED_KMS_KEY="arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310"
 
 SOPS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.sops\.(yml|yaml)$' || true)
 
@@ -22,15 +25,19 @@ for file in $SOPS_FILES; do
   for key in "${REQUIRED_AGE_KEYS[@]}"; do
     if ! grep -q "$key" "$file"; then
       echo "ERROR: $file is missing AGE recipient: $key"
-      echo "  Run: sops updatekeys $file"
       FAILED=1
     fi
   done
+
+  if ! grep -q "$REQUIRED_KMS_KEY" "$file"; then
+    echo "ERROR: $file is missing KMS key: $REQUIRED_KMS_KEY"
+    FAILED=1
+  fi
 done
 
 if [ "$FAILED" -ne 0 ]; then
   echo ""
-  echo "SOPS files must be encrypted for all AGE keys listed in .sops.yaml."
+  echo "SOPS files must be encrypted for all AGE keys AND the KMS key."
   echo "Run 'sops updatekeys <file>' to add missing recipients."
   exit 1
 fi
