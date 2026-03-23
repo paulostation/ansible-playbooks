@@ -1,0 +1,35 @@
+# {{ ansible_managed }}
+# Dnsmasq Configuration
+
+# Never forward plain names (without a dot or domain part)
+domain-needed
+
+# Never forward addresses in the non-routed address spaces
+bogus-priv
+
+# Don't read /etc/resolv.conf
+no-resolv
+
+# Upstream DNS servers
+{% for server in dns.upstream %}
+server={{ server }}
+{% endfor %}
+
+# Listen interfaces
+{% for iface in dnsmasq_listen_interfaces %}
+interface={{ iface }}
+{% endfor %}
+
+# Bind only to interfaces we're listening on
+bind-interfaces
+
+# Cache size
+cache-size={{ dns.cache_size }}
+
+# Don't use /etc/hosts
+no-hosts
+
+{% if dnsmasq_log_queries %}
+# Log all DNS queries
+log-queries
+{% endif %}

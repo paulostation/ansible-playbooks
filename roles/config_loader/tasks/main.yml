@@ -13,8 +13,19 @@
 # SOPS files are loaded via community.sops.load_vars, which decrypts
 # on the fly. Plain YAML files use ansible.builtin.include_vars.
 #
-# When config_store_path is empty, all tasks are skipped and Ansible
-# falls back to traditional group_vars/host_vars/role defaults.
+# When config_store_repo is set, the repo is cloned/updated automatically.
+# When config_store_path is empty and config_store_repo is empty, all tasks
+# are skipped and Ansible falls back to traditional group_vars/host_vars/role defaults.
+
+- name: Clone or update config store
+  ansible.builtin.git:
+    repo: "{{ config_store_repo }}"
+    dest: "{{ config_store_path }}"
+    version: "{{ config_store_version }}"
+  delegate_to: localhost
+  run_once: true
+  become: false
+  when: config_store_repo | length > 0
 
 - name: Config store loading
   when: config_store_path | length > 0

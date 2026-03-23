@@ -28,6 +28,9 @@ TAGS ?=
 # SOPS age key location
 SOPS_AGE_KEY_FILE ?= $(HOME)/.config/sops/age/keys.txt
 
+# AWS profile for SOPS KMS decryption (SSO)
+AWS_PROFILE ?= personal-admin-management
+
 # Build limit flag if HOST is provided
 ifdef HOST
   LIMIT_FLAG := -l $(HOST)
@@ -45,7 +48,8 @@ endif
 # Environment for ansible with SOPS support
 define ansible_env
 	source $(VENV)/bin/activate && \
-	export SOPS_AGE_KEY_FILE=$(SOPS_AGE_KEY_FILE)
+	export SOPS_AGE_KEY_FILE=$(SOPS_AGE_KEY_FILE) && \
+	export AWS_PROFILE=$(AWS_PROFILE)
 endef
 
 .PHONY: help setup setup-sops run dev nvim vpn-hub vpn-client networking users syncthing docker pxe edit edit-group clean

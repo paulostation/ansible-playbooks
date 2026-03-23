@@ -33,7 +33,7 @@
     - role: wireguard_server
       tags: [wireguard, vpn]
 
-    - role: oci_dnsmasq
+    - role: dnsmasq
       tags: [dns, dnsmasq]
 
   post_tasks:
