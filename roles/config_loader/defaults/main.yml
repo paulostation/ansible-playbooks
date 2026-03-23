@@ -5,13 +5,13 @@
 # to empty to use a pre-existing local checkout instead.
 
 # Git repository containing the config store
-config_store_repo: "https://github.com/paulostation/prod-values-personal.git"
+config_store_repo: "https://github.com/paulostation/prod-values.git"
 
 # Local path to clone/update the config store
 config_store_path: "~/.cache/ansible/prod-values"
 
 # Git branch/tag/commit to checkout
-config_store_version: HEAD
+config_store_version: main
 
 # Environment tier directory name
 config_environment: production
