@@ -5,7 +5,7 @@
 # to empty to use a pre-existing local checkout instead.
 
 # Git repository containing the config store
-config_store_repo: "git@github.com:paulostation/prod-values.git"
+config_store_repo: "https://github.com/paulostation/prod-values-personal.git"
 
 # Local path to clone/update the config store
 config_store_path: "~/.cache/ansible/prod-values"
