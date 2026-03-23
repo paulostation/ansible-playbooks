@@ -1,12 +1,17 @@
 ---
 # config_loader role defaults
 #
-# Set config_store_path to the local checkout of prod-values to enable
-# tiered value loading. Leave empty to skip (standalone mode).
-#
-# Example:
-#   config_store_path: "../prod-values"
-#   config_store_path: "{{ lookup('env', 'CONFIG_STORE') }}"
+# The config store is cloned from git automatically. Set config_store_repo
+# to empty to use a pre-existing local checkout instead.
 
-config_store_path: ""
+# Git repository containing the config store
+config_store_repo: "git@github.com:paulostation/prod-values.git"
+
+# Local path to clone/update the config store
+config_store_path: "~/.cache/ansible/prod-values"
+
+# Git branch/tag/commit to checkout
+config_store_version: HEAD
+
+# Environment tier directory name
 config_environment: production
