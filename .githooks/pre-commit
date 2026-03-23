@@ -1,0 +1,36 @@
+#!/bin/bash
+# Pre-commit hook: verify all SOPS files have all required AGE recipients
+#
+# Prevents committing SOPS files encrypted for only one machine.
+
+set -euo pipefail
+
+REQUIRED_AGE_KEYS=(
+  "age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk"
+  "age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g"
+)
+
+SOPS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.sops\.(yml|yaml)$' || true)
+
+if [ -z "$SOPS_FILES" ]; then
+  exit 0
+fi
+
+FAILED=0
+
+for file in $SOPS_FILES; do
+  for key in "${REQUIRED_AGE_KEYS[@]}"; do
+    if ! grep -q "$key" "$file"; then
+      echo "ERROR: $file is missing AGE recipient: $key"
+      echo "  Run: sops updatekeys $file"
+      FAILED=1
+    fi
+  done
+done
+
+if [ "$FAILED" -ne 0 ]; then
+  echo ""
+  echo "SOPS files must be encrypted for all AGE keys listed in .sops.yaml."
+  echo "Run 'sops updatekeys <file>' to add missing recipients."
+  exit 1
+fi
