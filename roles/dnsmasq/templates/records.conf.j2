@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# DNS records for {{ domain }}
+{% for record in dns.records %}
+address=/{{ record.name }}/{{ record.ip }}
+{% endfor %}

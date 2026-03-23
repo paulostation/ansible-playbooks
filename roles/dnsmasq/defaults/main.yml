@@ -1,0 +1,10 @@
+---
+# Dnsmasq Role - Defaults
+
+# Listen interfaces
+dnsmasq_listen_interfaces:
+  - wg0
+  - lo
+
+# Log queries for debugging
+dnsmasq_log_queries: false

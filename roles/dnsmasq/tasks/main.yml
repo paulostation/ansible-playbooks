@@ -1,5 +1,5 @@
 ---
-# OCI Dnsmasq Role - Main Tasks
+# Dnsmasq Role - Main Tasks
 
 - name: Install dnsmasq
   ansible.builtin.apt:
@@ -27,13 +27,37 @@
   become: true
   notify: Restart dnsmasq
 
-- name: Configure local hosts file for DNS
+- name: Deploy DNS records
   ansible.builtin.template:
-    src: hosts.local.j2
-    dest: /etc/hosts.local
+    src: records.conf.j2
+    dest: /etc/dnsmasq.d/records.conf
     mode: '0644'
     owner: root
     group: root
+  become: true
+  notify: Restart dnsmasq
+
+- name: Find unmanaged dnsmasq.d config files
+  ansible.builtin.find:
+    paths: /etc/dnsmasq.d
+    patterns: "*.conf"
+    excludes:
+      - records.conf
+  register: unmanaged_conf_files
+  become: true
+
+- name: Remove unmanaged dnsmasq.d config files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ unmanaged_conf_files.files }}"
+  become: true
+  notify: Restart dnsmasq
+
+- name: Remove legacy hosts.local file
+  ansible.builtin.file:
+    path: /etc/hosts.local
+    state: absent
   become: true
   notify: Restart dnsmasq
 
@@ -42,7 +66,6 @@
     content: |
       # Managed by Ansible - use local dnsmasq
       nameserver 127.0.0.1
-      search {{ dnsmasq_domain }}
     dest: /etc/resolv.conf
     mode: '0644'
     owner: root
