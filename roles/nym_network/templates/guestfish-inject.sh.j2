@@ -2,7 +2,7 @@
 set -e
 guestfish --rw -a "{{ libvirt_pool_dir | default("/var/lib/libvirt/images") }}/{{ nym_network.client.image_name }}" <<'GFEOF'
 run
-mount /dev/sda3 /
+mount /dev/sda1 /
 upload /tmp/nym-client-10-eth0.network /etc/systemd/network/10-eth0.network
 ln-sf /lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
 rm-f /etc/systemd/system/NetworkManager.service
