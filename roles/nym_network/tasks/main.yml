@@ -22,7 +22,12 @@
   tags: [client]
 
 - name: Destroy nym-network (tagged; never runs by default)
-  ansible.builtin.include_tasks: destroy.yml
+  ansible.builtin.include_tasks:
+    file: destroy.yml
+    apply:
+      tags:
+        - never
+        - destroy
   tags:
     - never
     - destroy
