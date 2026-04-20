@@ -1,0 +1,27 @@
+---
+# Define and start the nym-network libvirt network
+
+- name: Gather current libvirt network facts
+  community.libvirt.virt_net:
+    command: facts
+  register: _net_facts
+
+- name: Define nym libvirt network (idempotent)
+  community.libvirt.virt_net:
+    command: define
+    name: "{{ nym_network.libvirt_network_name }}"
+    xml: "{{ lookup('template', 'libvirt-nym-network.xml.j2') }}"
+
+- name: Start nym libvirt network
+  community.libvirt.virt_net:
+    command: create
+    name: "{{ nym_network.libvirt_network_name }}"
+  register: _net_start
+  failed_when:
+    - _net_start.failed | default(false)
+    - "'already active' not in (_net_start.msg | default(''))"
+
+- name: Mark nym libvirt network autostart
+  community.libvirt.virt_net:
+    autostart: true
+    name: "{{ nym_network.libvirt_network_name }}"

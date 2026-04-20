@@ -1,0 +1,7 @@
+<network>
+  <name>{{ nym_network.libvirt_network_name }}</name>
+  <bridge name="{{ nym_network.network_bridge }}" stp="on" delay="0"/>
+  <forward mode="none"/>
+  <ip address="{{ nym_network.gateway_internal_ip }}" netmask="{{ nym_network.internal_netmask }}">
+  </ip>
+</network>

@@ -5,7 +5,7 @@
   ansible.builtin.apt:
     name: libguestfs-tools
     state: present
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   become: true
 
