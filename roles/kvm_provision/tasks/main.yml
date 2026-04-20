@@ -200,7 +200,7 @@
   command: virsh -c qemu:///system vol-clone --pool {{ libvirt_pool_name }} --vol {{ base_image_name }} --newname {{ vm_name }}.qcow2
 
 - name: Create volume from base image
-  command: virsh -c qemu:///system vol-resize --capacity 10G --pool {{ libvirt_pool_name }} --vol  {{ vm_name }}.qcow2
+  command: virsh -c qemu:///system vol-resize --capacity {{ vm_disk_size | default("10G") }} --pool {{ libvirt_pool_name }} --vol  {{ vm_name }}.qcow2
 
 - name: Create vm network
   when: private_network_name is defined

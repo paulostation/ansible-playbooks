@@ -53,3 +53,4 @@
     vm_cloud_init_user_data: ""
     base_image_url: ""
     base_image_name: "kicksecure-nym-client-base.qcow2"
+    vm_disk_size: "100G"
