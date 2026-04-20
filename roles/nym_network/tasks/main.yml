@@ -20,3 +20,9 @@
 - name: Provision client VM
   ansible.builtin.include_tasks: client.yml
   tags: [client]
+
+- name: Destroy nym-network (tagged; never runs by default)
+  ansible.builtin.include_tasks: destroy.yml
+  tags:
+    - never
+    - destroy
