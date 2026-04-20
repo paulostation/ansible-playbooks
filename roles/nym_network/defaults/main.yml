@@ -7,9 +7,18 @@ nym_network:
   network_bridge: virbr-nym
   internal_cidr: 10.55.0.0/24
   internal_netmask: 255.255.255.0
+  network_prefix_length: 24
   gateway_internal_ip: 10.55.0.1
   client_internal_ip: 10.55.0.10
   dns_upstream: "1.1.1.1"
+
+  # NymVPN settings
+  nym_vpn_version: "1.4.5"
+  nym_vpn_mode: "mixnet"
+  nym_vpn_mnemonic: ""
+
+  # SSH public keys injected into gateway/client cloud-init
+  ssh_public_keys: []
 
   gateway:
     name: nym-gateway

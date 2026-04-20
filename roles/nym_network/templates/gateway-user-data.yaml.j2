@@ -1,0 +1,310 @@
+#cloud-config
+# Gateway VM Cloud-Init Configuration
+# Runs NymVPN daemon and routes client traffic through mixnet
+
+hostname: {{ nym_network.gateway.name }}
+
+users:
+  - name: ubuntu
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+{% for key in nym_network.ssh_public_keys %}
+      - {{ key }}
+{% endfor %}
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - wget
+  - vim
+  - htop
+  - net-tools
+  - dnsutils
+  - nftables
+  - dnsmasq
+
+write_files:
+  # NymVPN install script
+  - path: /opt/install-nymvpn.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      NYM_VERSION="{{ nym_network.nym_vpn_version }}"
+      DEB_URL="https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-core-v${NYM_VERSION}"
+
+      echo "Installing NymVPN v${NYM_VERSION}..."
+
+      # Download deb packages
+      cd /tmp
+      wget -q "${DEB_URL}/nym-vpnd_${NYM_VERSION}_amd64.deb" -O nym-vpnd.deb
+      wget -q "${DEB_URL}/nym-vpnc_${NYM_VERSION}_amd64.deb" -O nym-vpnc.deb
+
+      # Install (dpkg may fail on deps, apt fix handles it)
+      dpkg -i nym-vpnd.deb nym-vpnc.deb || apt-get install -f -y
+
+      # Enable daemon (intentionally NOT started — needs account mnemonic first)
+      # After deploy: nym-vpnc store-account && nym-vpnc connect
+      # On next reboot, nym-vpnd.service will auto-start
+      systemctl enable nym-vpnd.service
+
+      # Clean up
+      rm -f /tmp/nym-vpnd.deb /tmp/nym-vpnc.deb
+
+      echo "NymVPN installed. Run 'nym-vpnc store-account' to configure, then 'nym-vpnc connect' to start."
+
+  # IP forwarding (IPv6 must stay enabled — NymVPN requires it)
+  - path: /etc/sysctl.d/99-gateway.conf
+    content: |
+      net.ipv4.ip_forward = 1
+
+  # SSH protection + client forwarding nftables rules
+  # NymVPN creates a "nym" table with kill switch (policy drop on input/output/forward).
+  # It accepts packets marked with ct mark 0x00000f42.
+  # We mark SSH and forwarded client traffic with that mark so they pass the kill switch.
+  # NOTE: "type filter hook prerouting" is NOT supported on Ubuntu 24.04 kernel,
+  # so we use input/output/forward hooks only.
+  - path: /etc/nftables.d/ssh-protect.conf
+    permissions: '0644'
+    content: |
+      #!/usr/sbin/nft -f
+      table inet ssh_protect {
+        chain input {
+          type filter hook input priority -200; policy accept;
+          # Mark SSH so it survives the nym kill switch
+          tcp dport 22 ct mark set 0x00000f42 accept
+          # Mark all internal network traffic (client comms, DNS, ICMP)
+          iifname "enp1s0" ct mark set 0x00000f42 accept
+        }
+
+        chain output {
+          type filter hook output priority -200; policy accept;
+          # Mark SSH replies
+          tcp sport 22 ct mark set 0x00000f42 accept
+          # Mark all traffic to internal network (replies to client, dnsmasq)
+          oifname "enp1s0" ct mark set 0x00000f42 accept
+        }
+
+        chain forward {
+          type filter hook forward priority -150; policy accept;
+          # Mark all forwarded client traffic so it passes the nym kill switch
+          iifname "enp1s0" ct mark set 0x00000f42
+        }
+      }
+
+  # Systemd service to load SSH protection before nym-vpnd
+  - path: /etc/systemd/system/ssh-protect-nft.service
+    content: |
+      [Unit]
+      Description=SSH Protection nftables rules (before NymVPN)
+      Before=nym-vpnd.service nftables.service
+      After=network-pre.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/sbin/nft -f /etc/nftables.d/ssh-protect.conf
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # nftables firewall rules - our "gateway" table
+  # Separate from nym-vpnd's "nym" table
+  - path: /etc/nftables.conf
+    content: |
+      #!/usr/sbin/nft -f
+      # Create tables if they don't exist (first boot), then flush
+      add table inet gateway
+      add table inet nat
+      flush table inet gateway
+      flush table inet nat
+
+      table inet gateway {
+        chain input {
+          type filter hook input priority 0; policy drop;
+
+          # Allow established connections
+          ct state established,related accept
+
+          # Allow loopback
+          iif lo accept
+
+          # Allow SSH from anywhere
+          tcp dport 22 accept
+
+          # Allow DNS from internal network
+          iifname "enp1s0" udp dport 53 accept
+          iifname "enp1s0" tcp dport 53 accept
+
+          # Allow ICMP
+          icmp type { echo-request, echo-reply } accept
+        }
+
+        chain forward {
+          type filter hook forward priority 0; policy drop;
+
+          # Allow established connections
+          ct state established,related accept
+
+          # Allow internal -> NymVPN tunnel (tun0/tun1)
+          iifname "enp1s0" oifname "tun*" ct state new accept
+
+          # Drop internal -> external (leak prevention)
+          iifname "enp1s0" oifname "enp2s0" drop
+        }
+
+        chain output {
+          type filter hook output priority 0; policy accept;
+        }
+      }
+
+      table inet nat {
+        chain postrouting {
+          type nat hook postrouting priority 100;
+
+          # NAT for traffic going through NymVPN tunnel
+          oifname "tun*" masquerade
+        }
+      }
+
+  # dnsmasq configuration for internal DNS
+  - path: /etc/dnsmasq.d/gateway.conf
+    content: |
+      # Listen only on internal interface
+      interface=enp1s0
+      bind-dynamic
+      listen-address={{ nym_network.gateway_internal_ip }}
+      no-dhcp-interface=enp1s0
+      # Forward DNS to nym-vpnd's resolver (loopback)
+      server=127.0.0.53
+      cache-size=1000
+
+{% if nym_network.nym_vpn_mnemonic | default() !=  %}
+  # NymVPN account mnemonic (shredded after setup)
+  - path: /opt/nym-mnemonic.txt
+    permissions: '0600'
+    owner: root:root
+    content: {{ nym_network.nym_vpn_mnemonic }}
+{% endif %}
+
+  # NymVPN account setup script (used when mnemonic is provided)
+  - path: /opt/setup-nymvpn-account.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      MNEMONIC_FILE="/opt/nym-mnemonic.txt"
+      if [ ! -f "$MNEMONIC_FILE" ]; then
+        echo "No mnemonic file found — skipping auto-setup."
+        exit 0
+      fi
+
+      MNEMONIC=$(cat "$MNEMONIC_FILE")
+
+      echo "Setting NymVPN account..."
+      nym-vpnc account set "$MNEMONIC"
+
+      echo "Connecting NymVPN (mode: {{ nym_network.nym_vpn_mode }})..."
+      nym-vpnc connect
+
+      echo "Waiting for tunnel interface (up to 60s)..."
+      for i in $(seq 1 12); do
+        if ip link show tun0 >/dev/null 2>&1 || ip link show tun1 >/dev/null 2>&1; then
+          echo "Tunnel is up."
+          break
+        fi
+        sleep 5
+      done
+
+      if ! ip link show tun0 >/dev/null 2>&1 && ! ip link show tun1 >/dev/null 2>&1; then
+        echo "WARNING: Tunnel did not come up within 60s. Check 'nym-vpnc status'."
+        exit 1
+      fi
+
+      # Shred mnemonic file
+      echo "Shredding mnemonic file..."
+      shred -u "$MNEMONIC_FILE"
+      echo "NymVPN account setup complete."
+
+  # Gateway readiness check script
+  - path: /opt/check-ready.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      echo "=== NymVPN Gateway Status ==="
+      echo "Configured mode: {{ nym_network.nym_vpn_mode }}"
+      echo ""
+
+      echo "1. nym-vpnd service:"
+      systemctl is-active nym-vpnd.service && echo "   RUNNING" || echo "   NOT RUNNING"
+      echo ""
+
+      echo "2. Tunnel interfaces (tun0/tun1):"
+      ip link show tun0 2>/dev/null && echo "   tun0 UP" || echo "   tun0 NOT UP"
+      ip link show tun1 2>/dev/null && echo "   tun1 UP" || echo "   tun1 NOT UP"
+      [ ! -e /sys/class/net/tun0 ] && echo "   (connect with: nym-vpnc connect)"
+      echo ""
+
+      echo "3. NymVPN connection status:"
+      nym-vpnc status 2>/dev/null || echo "   Unable to query status"
+      echo ""
+
+      echo "4. IP forwarding:"
+      val=$(sysctl -n net.ipv4.ip_forward)
+      [ "$val" = "1" ] && echo "   ENABLED" || echo "   DISABLED"
+      echo ""
+
+      echo "5. nftables gateway table:"
+      nft list table inet gateway 2>/dev/null | head -5 && echo "   ..." || echo "   NOT LOADED"
+      echo ""
+
+      echo "6. dnsmasq:"
+      systemctl is-active dnsmasq && echo "   RUNNING" || echo "   NOT RUNNING"
+      echo ""
+
+      echo "7. External IP:"
+      curl -s --max-time 5 ifconfig.me || echo "   Unable to reach (tunnel may be down)"
+      echo ""
+
+runcmd:
+  # Apply sysctl settings
+  - sysctl --system
+
+  # Configure internal interface (fallback if netplan hasn't applied)
+  - ip addr add {{ nym_network.gateway_internal_ip }}/{{ nym_network.network_prefix_length }} dev enp1s0 || true
+
+  # Create nftables.d directory and load SSH protection
+  - mkdir -p /etc/nftables.d
+  - systemctl daemon-reload
+  - systemctl enable ssh-protect-nft.service
+  - nft -f /etc/nftables.d/ssh-protect.conf
+
+  # Enable and start nftables (gateway table)
+  - systemctl enable nftables
+  - systemctl start nftables
+
+  # Enable and start dnsmasq
+  - systemctl enable dnsmasq
+  - systemctl start dnsmasq
+
+  # Enable SSH daemon (socket activation fails under nym kill-switch)
+  - systemctl enable --now ssh
+
+  # Install NymVPN
+  - /opt/install-nymvpn.sh
+
+{% if nym_network.nym_vpn_mnemonic | default() !=  %}
+  # Auto-setup NymVPN account
+  - systemctl start nym-vpnd.service
+  - sleep 5
+  - /opt/setup-nymvpn-account.sh
+{% endif %}
+
+final_message: "NymVPN Gateway VM ready after $UPTIME seconds. Run 'nym-vpnc store-account' then 'nym-vpnc connect' to activate."
