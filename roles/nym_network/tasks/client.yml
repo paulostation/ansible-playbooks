@@ -1,0 +1,50 @@
+---
+# Provision nym-client VM (Kicksecure, no cloud-init)
+# Sequence: verify base image → clone → inject network config via guestfish → define + start domain
+
+- name: Ensure Kicksecure base image exists on this host
+  ansible.builtin.stat:
+    path: "{{ nym_network.client.base_image_path }}"
+  register: _kicksecure_base
+
+- name: Fail if Kicksecure base image missing
+  ansible.builtin.fail:
+    msg: >-
+      Kicksecure base image not found at {{ nym_network.client.base_image_path }}.
+      Build it first via terraform-kvm/images/build-kicksecure-client.sh, or override
+      nym_network.client.base_image_path.
+  when: not _kicksecure_base.stat.exists
+
+- name: Clone Kicksecure base image to client volume
+  ansible.builtin.copy:
+    src: "{{ nym_network.client.base_image_path }}"
+    dest: "{{ libvirt_pool_dir | default(\"/var/lib/libvirt/images\") }}/{{ nym_network.client.image_name }}"
+    remote_src: true
+    force: false
+    owner: libvirt-qemu
+    group: kvm
+    mode: "0600"
+  become: true
+
+- name: Inject network config via guestfish
+  ansible.builtin.include_tasks: guestfish.yml
+
+- name: Undefine any stale nym-client domain
+  community.libvirt.virt:
+    command: undefine
+    name: "{{ nym_network.client.name }}"
+    flags:
+      - nvram
+  failed_when: false
+
+- name: Define nym-client domain via kvm_provision template
+  ansible.builtin.include_role:
+    name: kvm_provision
+  vars:
+    vm_name: "{{ nym_network.client.name }}"
+    vm_vcpus: "{{ nym_network.client.vcpus }}"
+    vm_ram_mb: "{{ nym_network.client.memory_mb }}"
+    vm_net: "{{ nym_network.libvirt_network_name }}"
+    vm_cloud_init_user_data: ""
+    base_image_url: ""
+    base_image_name: "{{ nym_network.client.image_name }}"
