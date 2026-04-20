@@ -185,7 +185,7 @@ write_files:
       server=127.0.0.53
       cache-size=1000
 
-{% if nym_network.nym_vpn_mnemonic | default() !=  %}
+{% if nym_network.nym_vpn_mnemonic | default('') != '' %}
   # NymVPN account mnemonic (shredded after setup)
   - path: /opt/nym-mnemonic.txt
     permissions: '0600'
@@ -300,7 +300,7 @@ runcmd:
   # Install NymVPN
   - /opt/install-nymvpn.sh
 
-{% if nym_network.nym_vpn_mnemonic | default() !=  %}
+{% if nym_network.nym_vpn_mnemonic | default('') != '' %}
   # Auto-setup NymVPN account
   - systemctl start nym-vpnd.service
   - sleep 5
