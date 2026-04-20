@@ -150,10 +150,18 @@
         virsh -c qemu:///system vol-upload --pool {{ libvirt_pool_name }} {{ base_image_name }} "/tmp/{{ base_image_name }}"
       register: volume_creation_result
 
-- name: Generate cloudinit user data file from template
+- name: Copy pre-rendered cloud-init user-data (if provided)
+  ansible.builtin.copy:
+    src: "{{ vm_cloud_init_user_data }}"
+    dest: /tmp/userdata.yml
+    remote_src: true
+  when: vm_cloud_init_user_data is defined and vm_cloud_init_user_data | length > 0
+
+- name: Generate cloudinit user data file from template (default)
   template:
     src: cloud-init-user-data.j2
     dest: /tmp/userdata.yml
+  when: vm_cloud_init_user_data is not defined or vm_cloud_init_user_data | length == 0
 
 - name: Generate cloudinit user data file from template
   template:

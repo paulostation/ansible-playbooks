@@ -17,7 +17,7 @@
     vm_vcpus: "{{ nym_network.gateway.vcpus }}"
     vm_ram_mb: "{{ nym_network.gateway.memory_mb }}"
     vm_net: "{{ nym_network.gateway.external_network }}"
-    vm_private_net: "{{ nym_network.libvirt_network_name }}"
+    private_network_name: "{{ nym_network.libvirt_network_name }}"
     base_image_url: "{{ nym_network.gateway.image_url }}"
     base_image_name: "{{ nym_network.gateway.image_name }}"
     vm_cloud_init_user_data: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
