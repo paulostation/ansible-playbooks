@@ -13,11 +13,15 @@ nym_network:
   dns_upstream: "1.1.1.1"
 
   # NymVPN settings
+  # REQUIRED override from prod-values; 1.4.5 is a placeholder for template rendering only
   nym_vpn_version: "1.4.5"
   nym_vpn_mode: "mixnet"
+  # SENSITIVE: when set, must be provided via a SOPS-encrypted values tier
+  # (e.g., prod-values/production/pc-do-b/ansible.sops.yaml), never plain values.yaml
   nym_vpn_mnemonic: ""
 
   # SSH public keys injected into gateway/client cloud-init
+  # MUST be overridden — empty list locks you out of the VM (no console login either)
   ssh_public_keys: []
 
   gateway:
