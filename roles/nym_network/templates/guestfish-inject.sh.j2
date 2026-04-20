@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+guestfish --rw -a "{{ libvirt_pool_dir | default("/var/lib/libvirt/images") }}/{{ nym_network.client.image_name }}" <<'GFEOF'
+run
+mount /dev/sda3 /
+upload /tmp/nym-client-10-eth0.network /etc/systemd/network/10-eth0.network
+ln-sf /lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+rm-f /etc/systemd/system/NetworkManager.service
+ln-s /dev/null /etc/systemd/system/NetworkManager.service
+rm-f /etc/systemd/system/NetworkManager-dispatcher.service
+ln-s /dev/null /etc/systemd/system/NetworkManager-dispatcher.service
+rm-f /etc/systemd/system/NetworkManager-wait-online.service
+ln-s /dev/null /etc/systemd/system/NetworkManager-wait-online.service
+upload /tmp/nym-client-resolv.conf /etc/resolv.conf
+upload /tmp/nym-client-99-disable-ipv6.conf /etc/sysctl.d/99-disable-ipv6.conf
+upload /tmp/nym-client-test-isolation.sh /opt/test-isolation.sh
+chmod 0755 /opt/test-isolation.sh
+GFEOF

@@ -1,0 +1,60 @@
+---
+# Inject network config into the Kicksecure client volume via guestfish.
+# Called after kvm_provision clones the base image into the client volume.
+
+- name: Render client netconfig to temp
+  ansible.builtin.template:
+    src: client-netconfig-eth0.j2
+    dest: "/tmp/nym-client-10-eth0.network"
+    mode: "0644"
+  become: true
+
+- name: Render client resolv.conf to temp
+  ansible.builtin.template:
+    src: client-resolv.conf.j2
+    dest: "/tmp/nym-client-resolv.conf"
+    mode: "0644"
+  become: true
+
+- name: Write sysctl disable-ipv6 to temp
+  ansible.builtin.copy:
+    content: "net.ipv6.conf.all.disable_ipv6 = 1\nnet.ipv6.conf.default.disable_ipv6 = 1\n"
+    dest: "/tmp/nym-client-99-disable-ipv6.conf"
+    mode: "0644"
+  become: true
+
+- name: Copy test-isolation.sh to temp
+  ansible.builtin.copy:
+    src: test-isolation.sh
+    dest: "/tmp/nym-client-test-isolation.sh"
+    mode: "0755"
+  become: true
+
+- name: Render guestfish injection script
+  ansible.builtin.template:
+    src: guestfish-inject.sh.j2
+    dest: /tmp/nym-guestfish-inject.sh
+    mode: "0755"
+  become: true
+
+- name: Run guestfish injection
+  ansible.builtin.command:
+    cmd: /tmp/nym-guestfish-inject.sh
+  become: true
+  register: _guestfish_result
+  changed_when: _guestfish_result.rc == 0
+  failed_when:
+    - _guestfish_result.rc != 0
+    - "'is mounted' not in (_guestfish_result.stderr | default(''))"
+
+- name: Remove temporary files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/nym-client-10-eth0.network
+    - /tmp/nym-client-resolv.conf
+    - /tmp/nym-client-99-disable-ipv6.conf
+    - /tmp/nym-client-test-isolation.sh
+    - /tmp/nym-guestfish-inject.sh
+  become: true
