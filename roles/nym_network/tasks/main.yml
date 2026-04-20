@@ -1,0 +1,22 @@
+---
+# nym_network dispatcher — orchestrates network + gateway + client provisioning
+
+- name: Ensure libguestfs-tools installed (for Kicksecure client network injection)
+  ansible.builtin.apt:
+    name: libguestfs-tools
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true
+
+- name: Define and start libvirt network
+  ansible.builtin.include_tasks: network.yml
+  tags: [network]
+
+- name: Provision gateway VM
+  ansible.builtin.include_tasks: gateway.yml
+  tags: [gateway]
+
+- name: Provision client VM
+  ansible.builtin.include_tasks: client.yml
+  tags: [client]
