@@ -1,0 +1,7 @@
+[Match]
+Name=eth0
+
+[Network]
+Address={{ nym_network.client_internal_ip }}/{{ nym_network.internal_cidr.split("/")[1] }}
+Gateway={{ nym_network.gateway_internal_ip }}
+DNS={{ nym_network.gateway_internal_ip }}
