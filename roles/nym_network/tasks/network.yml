@@ -1,27 +1,16 @@
 ---
-# Define and start the nym-network libvirt network
+# Define and start the nym-network libvirt network.
+# Uses declarative state: API for idempotence — the module handles
+# already-defined / already-active cases internally.
 
-- name: Gather current libvirt network facts
+- name: Define nym libvirt network
   community.libvirt.virt_net:
-    command: facts
-  register: _net_facts
-
-- name: Define nym libvirt network (idempotent)
-  community.libvirt.virt_net:
-    command: define
     name: "{{ nym_network.libvirt_network_name }}"
+    state: present
     xml: "{{ lookup('template', 'libvirt-nym-network.xml.j2') }}"
-
-- name: Start nym libvirt network
-  community.libvirt.virt_net:
-    command: create
-    name: "{{ nym_network.libvirt_network_name }}"
-  register: _net_start
-  failed_when:
-    - _net_start.failed | default(false)
-    - "'already active' not in (_net_start.msg | default(''))"
-
-- name: Mark nym libvirt network autostart
-  community.libvirt.virt_net:
     autostart: true
+
+- name: Activate nym libvirt network
+  community.libvirt.virt_net:
     name: "{{ nym_network.libvirt_network_name }}"
+    state: active

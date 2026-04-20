@@ -1,7 +1,7 @@
+{# Rendered and passed to community.libvirt.virt_net as the `xml:` argument.
+   No <ip> on the host bridge — gateway VM owns gateway_internal_ip on its eth0. #}
 <network>
   <name>{{ nym_network.libvirt_network_name }}</name>
   <bridge name="{{ nym_network.network_bridge }}" stp="on" delay="0"/>
   <forward mode="none"/>
-  <ip address="{{ nym_network.gateway_internal_ip }}" netmask="{{ nym_network.internal_netmask }}">
-  </ip>
 </network>
