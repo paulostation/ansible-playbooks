@@ -1,0 +1,23 @@
+---
+# Provision nym-gateway VM using kvm_provision role
+
+- name: Render gateway cloud-init user-data
+  ansible.builtin.template:
+    src: gateway-user-data.yaml.j2
+    dest: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
+    mode: "0644"
+  become: true
+  register: _gw_userdata
+
+- name: Provision nym-gateway VM via kvm_provision
+  ansible.builtin.include_role:
+    name: kvm_provision
+  vars:
+    vm_name: "{{ nym_network.gateway.name }}"
+    vm_vcpus: "{{ nym_network.gateway.vcpus }}"
+    vm_ram_mb: "{{ nym_network.gateway.memory_mb }}"
+    vm_net: "{{ nym_network.gateway.external_network }}"
+    vm_private_net: "{{ nym_network.libvirt_network_name }}"
+    base_image_url: "{{ nym_network.gateway.image_url }}"
+    base_image_name: "{{ nym_network.gateway.image_name }}"
+    vm_cloud_init_user_data: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
