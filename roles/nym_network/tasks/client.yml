@@ -15,16 +15,21 @@
       nym_network.client.base_image_path.
   when: not _kicksecure_base.stat.exists
 
-- name: Clone Kicksecure base image to client volume
+- name: Clone Kicksecure base image to client volume (in ansible_pool)
   ansible.builtin.copy:
     src: "{{ nym_network.client.base_image_path }}"
-    dest: "{{ libvirt_pool_dir | default(\"/var/lib/libvirt/images\") }}/{{ nym_network.client.image_name }}"
+    dest: "/var/lib/libvirt/images/ansible_pool/{{ nym_network.client.image_name }}"
     remote_src: true
     force: false
     owner: libvirt-qemu
     group: kvm
     mode: "0600"
   become: true
+
+- name: Refresh ansible_pool so libvirt sees the new volume
+  ansible.builtin.command:
+    cmd: virsh -c qemu:///system pool-refresh ansible_pool
+  changed_when: false
 
 - name: Inject network config via guestfish
   ansible.builtin.include_tasks: guestfish.yml

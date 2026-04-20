@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-guestfish --rw -a "{{ libvirt_pool_dir | default("/var/lib/libvirt/images") }}/{{ nym_network.client.image_name }}" <<'GFEOF'
+guestfish --rw -a "/var/lib/libvirt/images/ansible_pool/{{ nym_network.client.image_name }}" <<'GFEOF'
 run
 mount /dev/sda1 /
 upload /tmp/nym-client-10-eth0.network /etc/systemd/network/10-eth0.network
