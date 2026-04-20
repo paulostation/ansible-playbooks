@@ -11,6 +11,7 @@ rm-f /etc/systemd/system/NetworkManager-dispatcher.service
 ln-s /dev/null /etc/systemd/system/NetworkManager-dispatcher.service
 rm-f /etc/systemd/system/NetworkManager-wait-online.service
 ln-s /dev/null /etc/systemd/system/NetworkManager-wait-online.service
+rm-f /etc/resolv.conf
 upload /tmp/nym-client-resolv.conf /etc/resolv.conf
 upload /tmp/nym-client-99-disable-ipv6.conf /etc/sysctl.d/99-disable-ipv6.conf
 upload /tmp/nym-client-test-isolation.sh /opt/test-isolation.sh
