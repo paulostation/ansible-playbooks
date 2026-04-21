@@ -17,7 +17,7 @@
 
     - name: Set ansible_ssh_common_args to disable host key checking for dynamically added hosts
       set_fact:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
   roles:
 

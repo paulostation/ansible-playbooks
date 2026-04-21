@@ -16,7 +16,7 @@
     vm_name: lokinet-gw-{{ vm_group_suffix }}
     client_vm_name: lokinet-client-{{ vm_group_suffix }}
     private_network_name: loki-network-{{ vm_group_suffix }}
-    ssh_pub_key: "/home/paulosf/.ssh/id_rsa.pub"
+    ssh_pub_key: "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519.pub"
 
   pre_tasks:
     - include_role:
@@ -53,22 +53,20 @@
         primary_network_interface: ens3
         secondary_network_interface: ens6
         lokinet_is_an_upgrade: true
-        # lokinet_exit_node_url: exit.loki
-        lokinet_exit_node_url: x8ip9ajto9heyfbm5hrzh8eunwaqi8rrbxdhezf3gh9nyf88peqo.loki
-        lokinet_exit_node_token: f7c168ed3f
+        lokinet_exit_node_url: exit.loki
       args: 
         host_name: '{{ vm_name }}'
         #dhcp_addr: '{{ dhcp_addr.stdout }}'
     
     - name: Set ansible_ssh_common_args to disable host key checking for dynamically added hosts
       set_fact:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
     - name: Validate if ssh is up
-      shell: ssh -T ubuntu@{{ dhcp_addr.stdout }} exit
+      shell: ssh -T -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=5 ubuntu@{{ dhcp_addr.stdout }} exit
       register: ssh_success
       until: "ssh_success is not failed"
-      retries: 10
+      retries: 30
       delay: 10
 
 
