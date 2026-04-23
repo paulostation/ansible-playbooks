@@ -41,9 +41,10 @@
         groups: target_hosts
         ansible_host: "{{ dhcp_addr.stdout }}"  # Specify the IP address of the new host
         ansible_user: ubuntu
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
         primary_network_interface: ens3
-        
-      args: 
+
+      args:
         host_name: '{{ vm_name }}'
         #dhcp_addr: '{{ dhcp_addr.stdout }}'
     

@@ -50,17 +50,14 @@
         groups: target_hosts
         ansible_host: "{{ dhcp_addr.stdout }}"  # Specify the IP address of the new host
         ansible_user: ubuntu
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
         primary_network_interface: ens3
         secondary_network_interface: ens6
         lokinet_is_an_upgrade: true
         lokinet_exit_node_url: exit.loki
-      args: 
+      args:
         host_name: '{{ vm_name }}'
         #dhcp_addr: '{{ dhcp_addr.stdout }}'
-    
-    - name: Set ansible_ssh_common_args to disable host key checking for dynamically added hosts
-      set_fact:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
     - name: Validate if ssh is up
       shell: ssh -T -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=5 ubuntu@{{ dhcp_addr.stdout }} exit
