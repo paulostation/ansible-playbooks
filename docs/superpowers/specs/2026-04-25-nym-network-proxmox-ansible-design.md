@@ -289,7 +289,7 @@ One-time setup (already done from the Terraform attempt or otherwise):
 - [x] AWS profile `personal-admin-management` configured locally (SSO)
 - [x] `paulao-vm-images` S3 bucket exists with `kicksecure-client-base.qcow2`
 
-Per-run setup:
+Per-run setup (the `_proxmox-preflight` Makefile target verifies these):
 - [ ] `aws sso login --profile personal-admin-management` (1-hour TTL)
 - [ ] `ssh-add ~/.ssh/id_ed25519` (or have a persistent agent)
 - [ ] `ssh root@proxmox.ts.paulo.software.vpn hostname` returns successfully
@@ -297,6 +297,44 @@ Per-run setup:
 Pin checksums (one-time per image rotation):
 - [ ] `nym_network.proxmox.images.gateway.sha256`: from Ubuntu's `SHA256SUMS` at the URL prefix
 - [ ] `nym_network.proxmox.images.client.sha256`: from your image-build pipeline or computed on first download
+
+## Makefile integration
+
+Three new targets in the existing `Makefile` at the repo root, following the existing convention (short verb-or-role-name targets that wrap `ansible-playbook`):
+
+```make
+PROXMOX_HOST ?= proxmox.ts.paulo.software.vpn   # overridable: PROXMOX_HOST=other.example.com make nym-proxmox
+
+.PHONY: nym-proxmox nym-proxmox-check nym-proxmox-destroy _proxmox-preflight
+
+_proxmox-preflight:
+	@aws sts get-caller-identity --profile $(AWS_PROFILE) >/dev/null 2>&1 \
+	  || { echo "❌ AWS SSO expired. Run: aws sso login --profile $(AWS_PROFILE)"; exit 1; }
+	@ssh-add -l >/dev/null 2>&1 \
+	  || { echo "❌ ssh-agent has no identity. Run: eval \"\$$(ssh-agent -s)\" && ssh-add ~/.ssh/id_ed25519"; exit 1; }
+	@ssh -o BatchMode=yes -o ConnectTimeout=5 root@$(PROXMOX_HOST) hostname >/dev/null 2>&1 \
+	  || { echo "❌ Cannot reach root@$(PROXMOX_HOST) via SSH."; exit 1; }
+	@echo "✅ Preflight passed: AWS SSO, ssh-agent, Proxmox reachable"
+
+nym-proxmox-check: _proxmox-preflight
+	$(ansible_env) && \
+	ansible-playbook -i $(INVENTORY) --check playbooks/nym-network-proxmox.yml $(ARGS)
+
+nym-proxmox: _proxmox-preflight
+	$(ansible_env) && \
+	ansible-playbook -i $(INVENTORY) playbooks/nym-network-proxmox.yml $(ARGS)
+
+nym-proxmox-destroy: _proxmox-preflight
+	$(ansible_env) && \
+	ansible-playbook -i $(INVENTORY) --tags destroy playbooks/nym-network-proxmox.yml $(ARGS)
+```
+
+Notes:
+- `PROXMOX_HOST` is a Make variable with a sensible default (`proxmox.ts.paulo.software.vpn`); override on the command line for a different host: `PROXMOX_HOST=other make nym-proxmox`.
+- `_proxmox-preflight` is a dependency target (leading underscore = convention for "internal"); each public target runs preflight first.
+- Targets surface the AWS CLI's own error messages on SSO expiry — same UX pattern as `terraform-kvm/scripts/tf-plan`.
+- `ARGS` is the existing escape hatch for ad-hoc `ansible-playbook` flags (e.g., `make nym-proxmox ARGS="-vvv"`).
+- The `ansible_env` and `AWS_PROFILE` Make defines already exist in the Makefile; we reuse them as-is.
 
 ## Risk register
 
