@@ -37,3 +37,10 @@ The role expects these vars to be set by `include_role`:
 
 See `defaults/main.yml`. Override `proxmox_provision.images` from the caller
 to enumerate base images that should exist on the Proxmox host.
+
+## Recovery from half-create state
+
+If a run is interrupted between `qm create` and `qm importdisk` (network blip,
+Ctrl-C), the next run will see the VM exists and skip the import, then fail at
+`qm set --virtio0` because the disk wasn't created. Recovery is one command on
+the Proxmox host: `qm destroy <vmid> --purge`. Then re-run the playbook.
