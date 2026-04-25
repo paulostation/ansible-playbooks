@@ -1,21 +1,27 @@
 ---
-# Provision nym-client VM (Kicksecure, no cloud-init)
-# Sequence: verify base image → clone → inject network config via guestfish → define + start domain
+# Provision the nym-client VM. Two paths:
+#   - libvirt: copy + guestfish-inject + define
+#   - proxmox: import pre-baked qcow2 (no cicustom; networking baked into image)
 
-- name: Ensure Kicksecure base image exists on this host
+# ────────────────────────── libvirt path ──────────────────────────
+
+- name: "(libvirt) Ensure Kicksecure base image exists on this host"
   ansible.builtin.stat:
     path: "{{ nym_network.client.base_image_path }}"
   register: _kicksecure_base
+  when: nym_network.provision_backend == "libvirt"
 
-- name: Fail if Kicksecure base image missing
+- name: "(libvirt) Fail if Kicksecure base image missing"
   ansible.builtin.fail:
     msg: >-
       Kicksecure base image not found at {{ nym_network.client.base_image_path }}.
       Build it first via terraform-kvm/images/build-kicksecure-client.sh, or override
       nym_network.client.base_image_path.
-  when: not _kicksecure_base.stat.exists
+  when:
+    - nym_network.provision_backend == "libvirt"
+    - not _kicksecure_base.stat.exists
 
-- name: Clone Kicksecure base image into ansible_pool (as the base for nym-client)
+- name: "(libvirt) Clone Kicksecure base image into ansible_pool"
   ansible.builtin.copy:
     src: "{{ nym_network.client.base_image_path }}"
     dest: "/var/lib/libvirt/images/ansible_pool/kicksecure-nym-client-base.qcow2"
@@ -25,24 +31,28 @@
     group: kvm
     mode: "0600"
   become: true
+  when: nym_network.provision_backend == "libvirt"
 
-- name: Refresh ansible_pool so libvirt sees the new volume
+- name: "(libvirt) Refresh ansible_pool"
   ansible.builtin.command:
     cmd: virsh -c qemu:///system pool-refresh ansible_pool
   changed_when: false
+  when: nym_network.provision_backend == "libvirt"
 
-- name: Inject network config via guestfish (into the base image before clone)
+- name: "(libvirt) Inject network config via guestfish"
   ansible.builtin.include_tasks: guestfish.yml
+  when: nym_network.provision_backend == "libvirt"
 
-- name: Undefine any stale nym-client domain
+- name: "(libvirt) Undefine any stale nym-client domain"
   community.libvirt.virt:
     command: undefine
     name: "{{ nym_network.client.name }}"
     flags:
       - nvram
   failed_when: false
+  when: nym_network.provision_backend == "libvirt"
 
-- name: Define nym-client domain via kvm_provision template
+- name: "(libvirt) Define nym-client domain via kvm_provision"
   ansible.builtin.include_role:
     name: kvm_provision
   vars:
@@ -54,3 +64,35 @@
     base_image_url: ""
     base_image_name: "kicksecure-nym-client-base.qcow2"
     vm_disk_size: "100G"
+  when: nym_network.provision_backend == "libvirt"
+
+# ────────────────────────── proxmox path ──────────────────────────
+
+- name: "(proxmox) Provision nym-client via proxmox_provision"
+  ansible.builtin.include_role:
+    name: proxmox_provision
+  vars:
+    vm_name: "{{ nym_network.client.name }}"
+    vm_role: "client"
+    vmid: "{{ nym_network.client.vmid }}"
+    vm_vcpus: "{{ nym_network.client.vcpus }}"
+    vm_ram_mb: "{{ nym_network.client.memory_mb }}"
+    vm_disk_size: "30G"
+    vm_net: "{{ nym_network.proxmox.sdn_vnet }}"
+    # No vm_internal_net — client is single-NIC.
+    vm_cloud_init_user_data: ""    # Kicksecure has networking baked in
+    vm_cloud_init_network_data: ""
+    base_image_filename: "{{ nym_network.proxmox.images.client.filename }}"
+    proxmox_provision:
+      ssh:
+        host: "{{ nym_network.proxmox.ssh_host | default('proxmox.ts.paulo.software.vpn') }}"
+        user: "root"
+        snippets_path: "/var/lib/vz/snippets"
+        iso_path: "/var/lib/vz/template/iso"
+      storage:
+        iso: "local"
+        snippets: "local"
+        vm_disk: "ceph-vms"
+      vmid_pool_start: 200
+      images: "{{ nym_network.proxmox.images }}"
+  when: nym_network.provision_backend == "proxmox"
