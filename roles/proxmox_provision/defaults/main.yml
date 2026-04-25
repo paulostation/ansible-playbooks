@@ -1,0 +1,24 @@
+---
+# proxmox_provision role defaults.
+# Override at the playbook level or via include_role vars.
+
+proxmox_provision:
+  ssh:
+    host: "proxmox.ts.paulo.software.vpn"
+    user: "root"
+    snippets_path: "/var/lib/vz/snippets"
+    iso_path: "/var/lib/vz/template/iso"
+
+  storage:
+    iso: "local"           # where downloaded base images live
+    snippets: "local"      # where cicustom YAMLs live
+    vm_disk: "ceph-vms"    # where cloned VM disks live
+
+  vmid_pool_start: 200
+
+  # Map of logical_name → image spec.
+  # Populated by the calling role (e.g., nym_network).
+  # Each value is one of:
+  #   { kind: http,  url, filename, sha256 }
+  #   { kind: s3,    bucket, key, aws_profile, presign_expires, filename, sha256 }
+  images: {}

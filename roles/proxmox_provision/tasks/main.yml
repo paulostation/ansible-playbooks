@@ -1,0 +1,28 @@
+---
+# proxmox_provision dispatcher.
+# Caller passes vm_name + role-level vars and includes this role.
+# Operations are split into discrete includes for legibility.
+
+- name: Run preflight checks
+  ansible.builtin.include_tasks: preflight.yml
+  tags: [proxmox_provision, preflight]
+
+- name: Ensure required base images on Proxmox
+  ansible.builtin.include_tasks: ensure_image.yml
+  loop: "{{ proxmox_provision.images | dict2items }}"
+  loop_control:
+    loop_var: image_entry
+    label: "{{ image_entry.key }}"
+  tags: [proxmox_provision, image]
+  when: proxmox_provision.images | length > 0
+
+- name: Upload cloud-init snippets (if any)
+  ansible.builtin.include_tasks: snippets.yml
+  tags: [proxmox_provision, snippets]
+  when:
+    - vm_cloud_init_user_data is defined
+    - vm_cloud_init_user_data | length > 0
+
+- name: Provision VM
+  ansible.builtin.include_tasks: vm.yml
+  tags: [proxmox_provision, vm]
