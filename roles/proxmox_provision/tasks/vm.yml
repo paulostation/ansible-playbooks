@@ -1,0 +1,84 @@
+---
+# Provision one VM identified by {{ vmid }}. Idempotent.
+#
+# Sequence:
+#   1. Check existence (qm status)
+#   2. If absent: qm create + qm importdisk
+#   3. Always: qm set (disk + nics + cicustom)
+#   4. qm resize (failed_when: false — already-at-size returns nonzero)
+#   5. qm start (only if not already running)
+
+- name: "Check VM existence: {{ vm_name }} (vmid {{ vmid }})"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.command:
+    cmd: "qm status {{ vmid }}"
+  register: _qm_status
+  changed_when: false
+  failed_when: false
+
+- name: "Create VM shell: {{ vm_name }}"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.command:
+    cmd: >-
+      qm create {{ vmid }}
+      --name {{ vm_name }}
+      --cores {{ vm_vcpus }}
+      --memory {{ vm_ram_mb }}
+      --cpu host
+      --ostype l26
+      --agent enabled=1
+      --serial0 socket
+      --vga serial0
+      --scsihw virtio-scsi-pci
+      --tags "nym;{{ vm_role }}"
+  when: _qm_status.rc != 0
+
+- name: "Import boot disk for {{ vm_name }} into {{ proxmox_provision.storage.vm_disk }}"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.command:
+    cmd: >-
+      qm importdisk {{ vmid }}
+      {{ proxmox_provision.ssh.iso_path }}/{{ base_image_filename }}
+      {{ proxmox_provision.storage.vm_disk }}
+      --format raw
+  when: _qm_status.rc != 0
+
+- name: "Attach boot disk + NICs (no cicustom): {{ vm_name }}"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.command:
+    cmd: >-
+      qm set {{ vmid }}
+      --virtio0 {{ proxmox_provision.storage.vm_disk }}:vm-{{ vmid }}-disk-0,iothread=1,discard=on
+      --boot order=virtio0
+      --net0 virtio,bridge={{ vm_net }}
+      {% if vm_internal_net is defined and vm_internal_net | length > 0 %}--net1 virtio,bridge={{ vm_internal_net }}{% endif %}
+  when:
+    - vm_cloud_init_user_data is not defined or vm_cloud_init_user_data | length == 0
+
+- name: "Attach boot disk + cicustom + NICs: {{ vm_name }}"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.command:
+    cmd: >-
+      qm set {{ vmid }}
+      --virtio0 {{ proxmox_provision.storage.vm_disk }}:vm-{{ vmid }}-disk-0,iothread=1,discard=on
+      --boot order=virtio0
+      --ide2 {{ proxmox_provision.storage.vm_disk }}:cloudinit
+      --cicustom "user={{ proxmox_provision.storage.snippets }}:snippets/{{ vm_name }}-user-data.yaml,network={{ proxmox_provision.storage.snippets }}:snippets/{{ vm_name }}-network-config.yaml"
+      --net0 virtio,bridge={{ vm_net }}
+      {% if vm_internal_net is defined and vm_internal_net | length > 0 %}--net1 virtio,bridge={{ vm_internal_net }}{% endif %}
+  when:
+    - vm_cloud_init_user_data is defined
+    - vm_cloud_init_user_data | length > 0
+
+- name: "Resize disk to {{ vm_disk_size }}"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.command:
+    cmd: "qm resize {{ vmid }} virtio0 {{ vm_disk_size }}"
+  changed_when: false
+  failed_when: false   # qm resize errors when already at target size
+
+- name: "Start VM: {{ vm_name }}"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.command:
+    cmd: "qm start {{ vmid }}"
+  when: "_qm_status.rc != 0 or 'status: stopped' in (_qm_status.stdout | default(''))"
