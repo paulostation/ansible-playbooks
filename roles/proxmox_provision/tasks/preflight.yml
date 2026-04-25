@@ -14,7 +14,7 @@
   register: _preflight_aws
   failed_when: _preflight_aws.rc is defined and _preflight_aws.rc != 0
 
-- name: "Preflight: ssh-agent has at least one identity"
+- name: "Preflight: ssh-agent is reachable"
   delegate_to: localhost
   become: false
   ansible.builtin.command:
@@ -24,9 +24,8 @@
   failed_when:
     - _preflight_agent.rc != 0
     - "'no identities' not in (_preflight_agent.stderr | default(''))"
-  # Note: ssh-add -l returns 1 with "The agent has no identities." when empty.
-  # We accept rc==1 only if it's the "no identities" string (and then fail in next task by SSH).
-  # If rc != 0 for any other reason (no agent at all), this fails.
+  # rc==0 = identities loaded; rc==1 with "no identities" = agent reachable but empty (acceptable —
+  # the next SSH-reach task will surface a clear Permission denied if no usable key is loaded).
 
 - name: "Preflight: SSH-as-root reach to Proxmox host"
   delegate_to: localhost
