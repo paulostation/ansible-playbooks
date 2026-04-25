@@ -1,0 +1,36 @@
+---
+# Provision the NymVPN gateway + Kicksecure client on a Proxmox VE 9 host.
+#
+# Usage:
+#   make nym-proxmox-check                # dry-run (--check mode)
+#   make nym-proxmox                      # apply
+#   make nym-proxmox-destroy              # tear down VMs (SDN survives)
+#
+# All actions are delegate_to root@<proxmox host>; this play targets localhost
+# and does not consume any Ansible host inventory beyond the control machine.
+
+- name: "Provision nym-network on Proxmox"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files: []   # add SOPS-encrypted vars files here if applicable
+
+  pre_tasks:
+    - name: "Force provision_backend = proxmox for this play"
+      ansible.builtin.set_fact:
+        nym_network_force_backend: proxmox
+
+  roles:
+    - role: config_loader
+      vars:
+        config_store_path: "{{ lookup('env', 'CONFIG_STORE') | default('', true) }}"
+        config_environment: production
+
+    - role: nym_network
+      vars:
+        nym_network:
+          provision_backend: "{{ nym_network_force_backend }}"
+          # Other keys: inherit from config_loader / role defaults.
+          # If config_loader replaces nym_network: wholesale, ensure the
+          # production values include provision_backend: proxmox for this host.
