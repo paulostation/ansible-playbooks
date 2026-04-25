@@ -568,7 +568,7 @@ Create `roles/proxmox_provision/tasks/vm.yml`:
   delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
   ansible.builtin.command:
     cmd: "qm start {{ vmid }}"
-  when: _qm_status.rc != 0 or 'status: stopped' in (_qm_status.stdout | default(''))
+  when: "_qm_status.rc != 0 or 'status: stopped' in (_qm_status.stdout | default(''))"
 ```
 
 - [ ] **Step 2: Verify YAML**
