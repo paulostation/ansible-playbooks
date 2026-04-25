@@ -3,6 +3,8 @@
 # NOTE: prod-values nym_network: block replaces this dict wholesale — keep all keys.
 
 nym_network:
+  provision_backend: libvirt    # "libvirt" | "proxmox"
+
   libvirt_network_name: nym-network
   network_bridge: virbr-nym
   internal_cidr: 10.55.0.0/24
@@ -26,6 +28,7 @@ nym_network:
 
   gateway:
     name: nym-gateway
+    vmid: 200
     vcpus: 2
     memory_mb: 2048
     disk_size_gb: 20
@@ -35,11 +38,33 @@ nym_network:
 
   client:
     name: nym-client
+    vmid: 201
     vcpus: 2
     memory_mb: 4096
     base_image_path: "/var/lib/libvirt/images/kicksecure-client-base.qcow2"
     image_name: nym-client.qcow2
     hostname: nym-client
+
+  # Proxmox-backend-specific settings.
+  # Only consulted when provision_backend == "proxmox".
+  proxmox:
+    sdn_zone: nymz       # <= 8 chars, alphanumeric only
+    sdn_vnet: nymiso     # <= 8 chars, alphanumeric only
+    external_bridge: vmbr0
+    images:
+      gateway:
+        kind: http
+        url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+        filename: "jammy-server-cloudimg-amd64.img"
+        sha256: "REPLACE_ON_FIRST_DEPLOY"
+      client:
+        kind: s3
+        bucket: paulao-vm-images
+        key: kicksecure-client-base.qcow2
+        aws_profile: personal-admin-management
+        presign_expires: 3600
+        filename: "kicksecure-nym-client.qcow2"
+        sha256: "REPLACE_ON_FIRST_DEPLOY"
 
 # Set true to destroy+redefine the libvirt network (DANGEROUS: kills running VMs on that bridge)
 nym_network_force_recreate_network: false
