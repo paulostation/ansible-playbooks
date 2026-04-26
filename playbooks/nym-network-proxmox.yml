@@ -1,0 +1,64 @@
+---
+# Provision the NymVPN gateway + Kicksecure client on a Proxmox VE 9 host.
+#
+# Usage:
+#   make nym-proxmox-check                # dry-run (--check mode)
+#   make nym-proxmox                      # apply
+#   make nym-proxmox-destroy              # tear down VMs (SDN survives)
+#
+# All actions are delegate_to root@<proxmox host>; this play targets localhost
+# and does not consume any Ansible host inventory beyond the control machine.
+
+- name: "Provision nym-network on Proxmox"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  # add_host (used in pre_tasks) requires linear strategy.
+  strategy: linear
+
+  vars_files: []   # add SOPS-encrypted vars files here if applicable
+
+  pre_tasks:
+    # All pre-tasks tagged `always` so they fire even with --tags destroy.
+    - name: "Force provision_backend = proxmox for this play"
+      ansible.builtin.set_fact:
+        nym_network_force_backend: proxmox
+      tags: always
+
+    # Load proxmox_provision defaults early so network-proxmox.yml (called by
+    # nym_network role before any include_role of proxmox_provision) can
+    # reference proxmox_provision.ssh.* on its delegate_to.
+    - name: "Pre-load proxmox_provision role defaults"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/proxmox_provision/defaults/main.yml"
+      tags: always
+
+    # Register a proper Ansible host entry for the Proxmox node so
+    # `delegate_to: proxmox_node` SSHes as root with our agent key. Using
+    # `delegate_to: "user@host"` does NOT make Ansible's connection plugin
+    # use that user — it falls back to the controller user.
+    - name: "Register proxmox_node for delegated tasks"
+      ansible.builtin.add_host:
+        name: proxmox_node
+        ansible_host: "{{ proxmox_provision.ssh.host }}"
+        ansible_user: "{{ proxmox_provision.ssh.user }}"
+        ansible_connection: ssh
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+      changed_when: false
+      tags: always
+
+  roles:
+    - role: config_loader
+      vars:
+        # When CONFIG_STORE is set, point config_loader at that local checkout
+        # and skip the git clone. When unset, both repo and path are empty so
+        # the role is a no-op and we fall back to nym_network role defaults.
+        config_store_path: "{{ lookup('env', 'CONFIG_STORE') | default('', true) }}"
+        config_store_repo: "{{ '' if (lookup('env', 'CONFIG_STORE') | length == 0) else (lookup('env', 'CONFIG_STORE_REPO') | default('', true)) }}"
+        config_environment: production
+
+    - role: nym_network
+      vars:
+        # Top-level var (NOT nested under nym_network:) so it can be overridden
+        # without clobbering the role's nym_network: dict.
+        nym_network_provision_backend: "{{ nym_network_force_backend }}"

@@ -9,7 +9,7 @@
     cleanup: yes
     # vm_name: "{{ vm_name }}"
     net: default
-    ssh_pub_key: "/home/paulosf/.ssh/id_rsa.pub"
+    ssh_pub_key: "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519.pub"
 
   pre_tasks:
     - include_role:
@@ -26,7 +26,6 @@
         vm_ram_mb: 4096
         cleanup_tmp: "{{ cleanup }}"
         ssh_key: "{{ ssh_pub_key }}"
-        install_desktop: true
         private_network_only: true
 
     - name: Validate if the VM has an IP address
@@ -42,9 +41,10 @@
         groups: target_hosts
         ansible_host: "{{ dhcp_addr.stdout }}"  # Specify the IP address of the new host
         ansible_user: ubuntu
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
         primary_network_interface: ens3
-        
-      args: 
+
+      args:
         host_name: '{{ vm_name }}'
         #dhcp_addr: '{{ dhcp_addr.stdout }}'
     

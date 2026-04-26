@@ -1,0 +1,57 @@
+---
+# Per-run preflight for proxmox_provision.
+# Fails the play with actionable hints surfaced from underlying tools.
+
+- name: "Preflight: AWS SSO sessions for S3-kind image profiles"
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command:
+    cmd: "aws sts get-caller-identity --profile {{ item.aws_profile }} --query Arn --output text"
+  changed_when: false
+  loop: "{{ proxmox_provision.images.values() | selectattr('kind', 'equalto', 's3') | list }}"
+  loop_control:
+    label: "{{ item.aws_profile }}"
+  register: _preflight_aws
+  failed_when: _preflight_aws.rc is defined and _preflight_aws.rc != 0
+
+- name: "Preflight: ssh-agent is reachable"
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command:
+    cmd: "ssh-add -l"
+  changed_when: false
+  register: _preflight_agent
+  failed_when:
+    - _preflight_agent.rc != 0
+    - "'no identities' not in (_preflight_agent.stderr | default(''))"
+  # rc==0 = identities loaded; rc==1 with "no identities" = agent reachable but empty (acceptable —
+  # the next SSH-reach task will surface a clear Permission denied if no usable key is loaded).
+
+- name: "Preflight: SSH-as-root reach to Proxmox host"
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command:
+    cmd: >-
+      ssh
+      -o BatchMode=yes
+      -o ConnectTimeout=5
+      -o StrictHostKeyChecking=accept-new
+      {{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}
+      pveversion
+  changed_when: false
+  register: _preflight_ssh
+  failed_when: _preflight_ssh.rc != 0
+
+- name: "Preflight: ensure ISO and snippets paths exist on Proxmox"
+  delegate_to: proxmox_node
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ proxmox_provision.ssh.iso_path }}"
+    - "{{ proxmox_provision.ssh.snippets_path }}"
+  # Always actually create the dirs (even during --check) so subsequent
+  # get_url/copy tasks see them. Creating an empty directory is safe to do
+  # in dry-run.
+  check_mode: false

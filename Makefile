@@ -173,3 +173,29 @@ endif
 clean:
 	@rm -rf .ansible_cache
 	@echo "Cleaned up cache files."
+
+# ─── Proxmox host (overridable: PROXMOX_HOST=other.example.com make nym-proxmox) ───
+PROXMOX_HOST ?= proxmox.ts.paulo.software.vpn
+
+.PHONY: nym-proxmox nym-proxmox-check nym-proxmox-destroy _proxmox-preflight
+
+_proxmox-preflight:
+	@aws sts get-caller-identity --profile $(AWS_PROFILE) >/dev/null 2>&1 \
+	  || { echo "❌ AWS SSO expired. Run: aws sso login --profile $(AWS_PROFILE)"; exit 1; }
+	@ssh-add -l >/dev/null 2>&1 \
+	  || { echo "❌ ssh-agent has no identity. Run: eval \"\$$(ssh-agent -s)\" && ssh-add ~/.ssh/id_ed25519"; exit 1; }
+	@ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new root@$(PROXMOX_HOST) hostname >/dev/null 2>&1 \
+	  || { echo "❌ Cannot reach root@$(PROXMOX_HOST) via SSH."; exit 1; }
+	@echo "✅ Preflight passed: AWS SSO, ssh-agent, Proxmox reachable"
+
+nym-proxmox-check: _proxmox-preflight
+	$(ansible_env) && \
+	ansible-playbook -i $(INVENTORY) --check playbooks/nym-network-proxmox.yml $(ARGS)
+
+nym-proxmox: _proxmox-preflight
+	$(ansible_env) && \
+	ansible-playbook -i $(INVENTORY) playbooks/nym-network-proxmox.yml $(ARGS)
+
+nym-proxmox-destroy: _proxmox-preflight
+	$(ansible_env) && \
+	ansible-playbook -i $(INVENTORY) --tags destroy playbooks/nym-network-proxmox.yml $(ARGS)

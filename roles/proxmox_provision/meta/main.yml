@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: proxmox_provision
+  author: Paulo Francisco
+  description: >
+    Sibling of kvm_provision. Provisions VMs on a Proxmox VE node via SSH-as-root
+    and idempotent qm/pvesh invocations. No Proxmox API token; no
+    community.general.proxmox_kvm. Image management is checksum-gated and
+    self-healing; S3 images are presigned on the control host using a
+    configurable AWS profile.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - proxmox
+    - virtualization
+    - vm
+dependencies: []
