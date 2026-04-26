@@ -19,13 +19,23 @@
   ansible.builtin.copy:
     dest: "/tmp/{{ nym_network.gateway.name }}-network-config.yaml"
     mode: "0644"
+    # Match-by-MAC + set-name so the in-VM interface names match the
+    # nftables/dnsmasq references (enp1s0/enp2s0) regardless of Proxmox
+    # machine type (i440fx names them ens3/ens6, q35 names them enp1s0/enp2s0).
+    # Pinned MACs come from prod-values/production/proxmox/values.yaml.
     content: |
       version: 2
       ethernets:
-        ens18:
+        external:
+          match:
+            macaddress: "{{ nym_network.gateway.external_mac | lower }}"
+          set-name: enp2s0
           dhcp4: true
           dhcp6: false
-        ens19:
+        internal:
+          match:
+            macaddress: "{{ nym_network.gateway.internal_mac | lower }}"
+          set-name: enp1s0
           addresses:
             - {{ nym_network.gateway_internal_ip }}/{{ nym_network.network_prefix_length }}
           dhcp4: false
@@ -59,6 +69,8 @@
     vm_disk_size: "{{ nym_network.gateway.disk_size_gb }}G"
     vm_net: "{{ nym_network.proxmox.external_bridge }}"
     vm_internal_net: "{{ nym_network.proxmox.sdn_vnet }}"
+    vm_net0_mac: "{{ nym_network.gateway.external_mac | default('') }}"
+    vm_net1_mac: "{{ nym_network.gateway.internal_mac | default('') }}"
     vm_cloud_init_user_data: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
     vm_cloud_init_network_data: "/tmp/{{ nym_network.gateway.name }}-network-config.yaml"
     base_image_filename: "{{ nym_network.proxmox.images.gateway.filename }}"

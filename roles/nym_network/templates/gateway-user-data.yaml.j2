@@ -28,6 +28,7 @@ packages:
   - dnsutils
   - nftables
   - dnsmasq
+  - qemu-guest-agent
 
 write_files:
   # NymVPN install script
@@ -297,6 +298,11 @@ runcmd:
 
   # Enable SSH daemon (socket activation fails under nym kill-switch)
   - systemctl enable --now ssh
+
+  # Enable QEMU guest agent so the Proxmox host can introspect the VM.
+  # Survives the nym-vpn kill switch because ssh-protect's ct mark covers
+  # only port 22 + enp1s0 traffic; the agent socket runs locally over virtio-serial.
+  - systemctl enable --now qemu-guest-agent
 
   # Install NymVPN
   - /opt/install-nymvpn.sh

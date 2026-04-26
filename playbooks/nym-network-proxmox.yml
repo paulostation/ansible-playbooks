@@ -6,42 +6,32 @@
 #   make nym-proxmox                      # apply
 #   make nym-proxmox-destroy              # tear down VMs (SDN survives)
 #
-# All actions are delegate_to root@<proxmox host>; this play targets localhost
-# and does not consume any Ansible host inventory beyond the control machine.
+# Targets the `proxmox` host (defined in hosts.yml). Most heavy lifting is done
+# via SSH to that node; AWS-side tasks (sts, presign) explicitly delegate to
+# localhost.
 
 - name: "Provision nym-network on Proxmox"
-  hosts: localhost
-  connection: local
+  hosts: proxmox
   gather_facts: false
-  # add_host (used in pre_tasks) requires linear strategy.
+  # add_host (used in pre_tasks) requires linear strategy; keep it explicit.
   strategy: linear
 
-  vars_files: []   # add SOPS-encrypted vars files here if applicable
+  vars_files: []   # SOPS-encrypted host vars are loaded via config_loader (Tier 5)
 
   pre_tasks:
-    # All pre-tasks tagged `always` so they fire even with --tags destroy.
-    - name: "Force provision_backend = proxmox for this play"
-      ansible.builtin.set_fact:
-        nym_network_force_backend: proxmox
-      tags: always
-
-    # Load proxmox_provision defaults early so network-proxmox.yml (called by
-    # nym_network role before any include_role of proxmox_provision) can
-    # reference proxmox_provision.ssh.* on its delegate_to.
+    # Ensure all role tasks run regardless of --tags selectors (e.g., destroy).
     - name: "Pre-load proxmox_provision role defaults"
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../roles/proxmox_provision/defaults/main.yml"
       tags: always
 
-    # Register a proper Ansible host entry for the Proxmox node so
-    # `delegate_to: proxmox_node` SSHes as root with our agent key. Using
-    # `delegate_to: "user@host"` does NOT make Ansible's connection plugin
-    # use that user — it falls back to the controller user.
-    - name: "Register proxmox_node for delegated tasks"
+    # Alias proxmox_node → this play's host so role code that references
+    # `delegate_to: proxmox_node` keeps working without changes.
+    - name: "Register proxmox_node alias for delegated tasks"
       ansible.builtin.add_host:
         name: proxmox_node
-        ansible_host: "{{ proxmox_provision.ssh.host }}"
-        ansible_user: "{{ proxmox_provision.ssh.user }}"
+        ansible_host: "{{ ansible_host }}"
+        ansible_user: "{{ ansible_user | default('root') }}"
         ansible_connection: ssh
         ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
       changed_when: false
@@ -50,15 +40,11 @@
   roles:
     - role: config_loader
       vars:
-        # When CONFIG_STORE is set, point config_loader at that local checkout
-        # and skip the git clone. When unset, both repo and path are empty so
-        # the role is a no-op and we fall back to nym_network role defaults.
+        # Use a local config-store checkout when CONFIG_STORE is set
+        # (recommended dev workflow). When unset, both repo and path are
+        # empty → role is a no-op and we fall back to role defaults.
         config_store_path: "{{ lookup('env', 'CONFIG_STORE') | default('', true) }}"
         config_store_repo: "{{ '' if (lookup('env', 'CONFIG_STORE') | length == 0) else (lookup('env', 'CONFIG_STORE_REPO') | default('', true)) }}"
         config_environment: production
 
     - role: nym_network
-      vars:
-        # Top-level var (NOT nested under nym_network:) so it can be overridden
-        # without clobbering the role's nym_network: dict.
-        nym_network_provision_backend: "{{ nym_network_force_backend }}"

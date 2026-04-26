@@ -50,8 +50,8 @@
       qm set {{ vmid }}
       --virtio0 {{ proxmox_provision.storage.vm_disk }}:vm-{{ vmid }}-disk-0,iothread=1,discard=on
       --boot order=virtio0
-      --net0 virtio,bridge={{ vm_net }}
-      {% if vm_internal_net is defined and vm_internal_net | length > 0 %}--net1 virtio,bridge={{ vm_internal_net }}{% endif %}
+      --net0 {% if vm_net0_mac | default('') | length > 0 %}virtio={{ vm_net0_mac }}{% else %}virtio{% endif %},bridge={{ vm_net }}
+      {% if vm_internal_net is defined and vm_internal_net | length > 0 %}--net1 {% if vm_net1_mac | default('') | length > 0 %}virtio={{ vm_net1_mac }}{% else %}virtio{% endif %},bridge={{ vm_internal_net }}{% endif %}
   when:
     - vm_cloud_init_user_data is not defined or vm_cloud_init_user_data | length == 0
 
@@ -64,8 +64,8 @@
       --boot order=virtio0
       --ide2 {{ proxmox_provision.storage.vm_disk }}:cloudinit
       --cicustom "user={{ proxmox_provision.storage.snippets }}:snippets/{{ vm_name }}-user-data.yaml,network={{ proxmox_provision.storage.snippets }}:snippets/{{ vm_name }}-network-config.yaml"
-      --net0 virtio,bridge={{ vm_net }}
-      {% if vm_internal_net is defined and vm_internal_net | length > 0 %}--net1 virtio,bridge={{ vm_internal_net }}{% endif %}
+      --net0 {% if vm_net0_mac | default('') | length > 0 %}virtio={{ vm_net0_mac }}{% else %}virtio{% endif %},bridge={{ vm_net }}
+      {% if vm_internal_net is defined and vm_internal_net | length > 0 %}--net1 {% if vm_net1_mac | default('') | length > 0 %}virtio={{ vm_net1_mac }}{% else %}virtio{% endif %},bridge={{ vm_internal_net }}{% endif %}
   when:
     - vm_cloud_init_user_data is defined
     - vm_cloud_init_user_data | length > 0
