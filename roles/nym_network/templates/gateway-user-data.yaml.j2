@@ -42,16 +42,29 @@ write_files:
     content: |
       #!/bin/bash
       set -e
+      exec > >(tee -a /var/log/install-nymvpn.log) 2>&1
 
       NYM_VERSION="{{ nym_network.nym_vpn_version }}"
       DEB_URL="https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-core-v${NYM_VERSION}"
 
       echo "Installing NymVPN v${NYM_VERSION}..."
 
-      # Download deb packages
+      # Wait for network to actually work (DHCP race with runcmd timing).
+      for i in $(seq 1 30); do
+        if curl -sf -m 5 https://github.com >/dev/null 2>&1; then
+          echo "Network reachable after ${i} attempt(s)."
+          break
+        fi
+        echo "Network not ready (attempt ${i}/30), sleeping 5s..."
+        sleep 5
+      done
+
+      # Download deb packages with retries (verbose for diagnosis if it fails).
       cd /tmp
-      wget -q "${DEB_URL}/nym-vpnd_${NYM_VERSION}_amd64.deb" -O nym-vpnd.deb
-      wget -q "${DEB_URL}/nym-vpnc_${NYM_VERSION}_amd64.deb" -O nym-vpnc.deb
+      wget --tries=5 --waitretry=10 --timeout=30 \
+        "${DEB_URL}/nym-vpnd_${NYM_VERSION}_amd64.deb" -O nym-vpnd.deb
+      wget --tries=5 --waitretry=10 --timeout=30 \
+        "${DEB_URL}/nym-vpnc_${NYM_VERSION}_amd64.deb" -O nym-vpnc.deb
 
       # Install (dpkg may fail on deps, apt fix handles it)
       dpkg -i nym-vpnd.deb nym-vpnc.deb || apt-get install -f -y
@@ -121,18 +134,19 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
-  # nftables firewall rules - our "gateway" table
-  # Separate from nym-vpnd's "nym" table
+  # nftables firewall rules - our "nym_gateway" table
+  # Separate from nym-vpnd's "nym" table.
+  # NOTE: "gateway" is a reserved keyword in nft on jammy, so we use nym_gateway.
   - path: /etc/nftables.conf
     content: |
       #!/usr/sbin/nft -f
       # Create tables if they don't exist (first boot), then flush
-      add table inet gateway
+      add table inet nym_gateway
       add table inet nat
-      flush table inet gateway
+      flush table inet nym_gateway
       flush table inet nat
 
-      table inet gateway {
+      table inet nym_gateway {
         chain input {
           type filter hook input priority 0; policy drop;
 
@@ -268,8 +282,8 @@ write_files:
       [ "$val" = "1" ] && echo "   ENABLED" || echo "   DISABLED"
       echo ""
 
-      echo "5. nftables gateway table:"
-      nft list table inet gateway 2>/dev/null | head -5 && echo "   ..." || echo "   NOT LOADED"
+      echo "5. nftables nym_gateway table:"
+      nft list table inet nym_gateway 2>/dev/null | head -5 && echo "   ..." || echo "   NOT LOADED"
       echo ""
 
       echo "6. dnsmasq:"
@@ -293,7 +307,7 @@ runcmd:
   - systemctl enable ssh-protect-nft.service
   - nft -f /etc/nftables.d/ssh-protect.conf
 
-  # Enable and start nftables (gateway table)
+  # Enable and start nftables (nym_gateway table)
   - systemctl enable nftables
   - systemctl start nftables
 
