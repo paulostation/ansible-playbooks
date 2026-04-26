@@ -19,9 +19,11 @@
   vars_files: []   # add SOPS-encrypted vars files here if applicable
 
   pre_tasks:
+    # All pre-tasks tagged `always` so they fire even with --tags destroy.
     - name: "Force provision_backend = proxmox for this play"
       ansible.builtin.set_fact:
         nym_network_force_backend: proxmox
+      tags: always
 
     # Load proxmox_provision defaults early so network-proxmox.yml (called by
     # nym_network role before any include_role of proxmox_provision) can
@@ -29,6 +31,7 @@
     - name: "Pre-load proxmox_provision role defaults"
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../roles/proxmox_provision/defaults/main.yml"
+      tags: always
 
     # Register a proper Ansible host entry for the Proxmox node so
     # `delegate_to: proxmox_node` SSHes as root with our agent key. Using
@@ -42,6 +45,7 @@
         ansible_connection: ssh
         ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
       changed_when: false
+      tags: always
 
   roles:
     - role: config_loader
