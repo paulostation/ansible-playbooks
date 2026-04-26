@@ -59,6 +59,10 @@
         host_name: '{{ vm_name }}'
         #dhcp_addr: '{{ dhcp_addr.stdout }}'
 
+    - name: Set ansible_ssh_common_args to disable host key checking for dynamically added hosts
+      set_fact:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
     - name: Validate if ssh is up
       shell: ssh -T -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=5 ubuntu@{{ dhcp_addr.stdout }} exit
       register: ssh_success
