@@ -13,6 +13,8 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  # add_host (used in pre_tasks) requires linear strategy.
+  strategy: linear
 
   vars_files: []   # add SOPS-encrypted vars files here if applicable
 
