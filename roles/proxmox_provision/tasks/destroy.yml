@@ -4,21 +4,21 @@
 # may share). Add a separate destroy-network task if needed.
 
 - name: "Stop VM if running: {{ vmid }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: "qm stop {{ vmid }} --skiplock"
   failed_when: false
   changed_when: false
 
 - name: "Destroy VM: {{ vmid }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: "qm destroy {{ vmid }} --purge --skiplock"
   failed_when: false
   changed_when: false
 
 - name: "Remove cicustom snippets for {{ vm_name }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent

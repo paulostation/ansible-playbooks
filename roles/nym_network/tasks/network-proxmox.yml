@@ -8,7 +8,7 @@
 #   - Defaults are nymz / nymiso. Override at nym_network.proxmox.* if needed.
 
 - name: "SDN: ensure simple zone exists ({{ nym_network.proxmox.sdn_zone }})"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.shell:
     cmd: |
       pvesh get /cluster/sdn/zones/{{ nym_network.proxmox.sdn_zone }} >/dev/null 2>&1 \
@@ -17,7 +17,7 @@
   changed_when: "'already exists' not in (_sdn_zone.stderr | default(''))"
 
 - name: "SDN: ensure vnet exists ({{ nym_network.proxmox.sdn_vnet }})"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.shell:
     cmd: |
       pvesh get /cluster/sdn/vnets/{{ nym_network.proxmox.sdn_vnet }} >/dev/null 2>&1 \
@@ -26,7 +26,7 @@
   changed_when: "'already exists' not in (_sdn_vnet.stderr | default(''))"
 
 - name: "SDN: apply pending changes"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: "pvesh set /cluster/sdn"
   changed_when: false

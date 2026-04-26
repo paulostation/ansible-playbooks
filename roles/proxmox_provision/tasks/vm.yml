@@ -9,7 +9,7 @@
 #   5. qm start (only if not already running)
 
 - name: "Check VM existence: {{ vm_name }} (vmid {{ vmid }})"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: "qm status {{ vmid }}"
   register: _qm_status
@@ -17,7 +17,7 @@
   failed_when: false
 
 - name: "Create VM shell: {{ vm_name }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: >-
       qm create {{ vmid }}
@@ -34,7 +34,7 @@
   when: _qm_status.rc != 0
 
 - name: "Import boot disk for {{ vm_name }} into {{ proxmox_provision.storage.vm_disk }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: >-
       qm importdisk {{ vmid }}
@@ -44,7 +44,7 @@
   when: _qm_status.rc != 0
 
 - name: "Attach boot disk + NICs (no cicustom): {{ vm_name }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: >-
       qm set {{ vmid }}
@@ -56,7 +56,7 @@
     - vm_cloud_init_user_data is not defined or vm_cloud_init_user_data | length == 0
 
 - name: "Attach boot disk + cicustom + NICs: {{ vm_name }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: >-
       qm set {{ vmid }}
@@ -71,14 +71,14 @@
     - vm_cloud_init_user_data | length > 0
 
 - name: "Resize disk to {{ vm_disk_size }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: "qm resize {{ vmid }} virtio0 {{ vm_disk_size }}"
   changed_when: false
   failed_when: false   # qm resize errors when already at target size
 
 - name: "Start VM: {{ vm_name }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.command:
     cmd: "qm start {{ vmid }}"
   when: "_qm_status.rc != 0 or 'status: stopped' in (_qm_status.stdout | default(''))"

@@ -8,7 +8,7 @@
 #   { kind: s3,    bucket, key, aws_profile, presign_expires, filename, sha256 }
 
 - name: "Stat existing image on Proxmox: {{ image_entry.value.filename }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.stat:
     path: "{{ proxmox_provision.ssh.iso_path }}/{{ image_entry.value.filename }}"
     checksum_algorithm: sha256
@@ -46,7 +46,7 @@
   when: _img_needed | bool
 
 - name: "Download {{ image_entry.value.filename }} on Proxmox host"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.get_url:
     url: "{{ _img_effective_url }}"
     dest: "{{ proxmox_provision.ssh.iso_path }}/{{ image_entry.value.filename }}"

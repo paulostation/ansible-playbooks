@@ -4,14 +4,14 @@
 # Only invoked when vm_cloud_init_user_data is defined and non-empty.
 
 - name: "Upload cicustom user-data for {{ vm_name }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.copy:
     src: "{{ vm_cloud_init_user_data }}"
     dest: "{{ proxmox_provision.ssh.snippets_path }}/{{ vm_name }}-user-data.yaml"
     mode: "0644"
 
 - name: "Upload cicustom network-config for {{ vm_name }}"
-  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  delegate_to: proxmox_node
   ansible.builtin.copy:
     src: "{{ vm_cloud_init_network_data }}"
     dest: "{{ proxmox_provision.ssh.snippets_path }}/{{ vm_name }}-network-config.yaml"

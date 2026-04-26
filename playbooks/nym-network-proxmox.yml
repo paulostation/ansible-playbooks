@@ -28,6 +28,19 @@
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../roles/proxmox_provision/defaults/main.yml"
 
+    # Register a proper Ansible host entry for the Proxmox node so
+    # `delegate_to: proxmox_node` SSHes as root with our agent key. Using
+    # `delegate_to: "user@host"` does NOT make Ansible's connection plugin
+    # use that user — it falls back to the controller user.
+    - name: "Register proxmox_node for delegated tasks"
+      ansible.builtin.add_host:
+        name: proxmox_node
+        ansible_host: "{{ proxmox_provision.ssh.host }}"
+        ansible_user: "{{ proxmox_provision.ssh.user }}"
+        ansible_connection: ssh
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+      changed_when: false
+
   roles:
     - role: config_loader
       vars:
