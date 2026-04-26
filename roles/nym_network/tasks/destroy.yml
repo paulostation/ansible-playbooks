@@ -9,7 +9,7 @@
     command: destroy
     name: "{{ nym_network.gateway.name }}"
   failed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Undefine nym-gateway domain (with NVRAM)"
   community.libvirt.virt:
@@ -18,14 +18,14 @@
     flags:
       - nvram
   failed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Stop nym-client domain"
   community.libvirt.virt:
     command: destroy
     name: "{{ nym_network.client.name }}"
   failed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Undefine nym-client domain (with NVRAM)"
   community.libvirt.virt:
@@ -34,7 +34,7 @@
     flags:
       - nvram
   failed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Remove VM volumes"
   ansible.builtin.file:
@@ -45,21 +45,21 @@
     - "{{ nym_network.gateway.name }}_cidata.iso"
     - "{{ nym_network.client.image_name }}"
   become: true
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Stop nym libvirt network"
   community.libvirt.virt_net:
     name: "{{ nym_network.libvirt_network_name }}"
     state: inactive
   failed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Undefine nym libvirt network"
   community.libvirt.virt_net:
     name: "{{ nym_network.libvirt_network_name }}"
     state: absent
   failed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 # ────────────────────────── proxmox path ──────────────────────────
 
@@ -82,7 +82,7 @@
         vm_disk: "ceph-vms"
       vmid_pool_start: 200
       images: {}
-  when: nym_network.provision_backend == "proxmox"
+  when: nym_network_provision_backend == "proxmox"
 
 - name: "(proxmox) Destroy nym-client VM"
   ansible.builtin.include_role:
@@ -103,4 +103,4 @@
         vm_disk: "ceph-vms"
       vmid_pool_start: 200
       images: {}
-  when: nym_network.provision_backend == "proxmox"
+  when: nym_network_provision_backend == "proxmox"

@@ -9,7 +9,7 @@
   ansible.builtin.stat:
     path: "{{ nym_network.client.base_image_path }}"
   register: _kicksecure_base
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Fail if Kicksecure base image missing"
   ansible.builtin.fail:
@@ -18,7 +18,7 @@
       Build it first via terraform-kvm/images/build-kicksecure-client.sh, or override
       nym_network.client.base_image_path.
   when:
-    - nym_network.provision_backend == "libvirt"
+    - nym_network_provision_backend == "libvirt"
     - not _kicksecure_base.stat.exists
 
 - name: "(libvirt) Clone Kicksecure base image into ansible_pool"
@@ -31,17 +31,17 @@
     group: kvm
     mode: "0600"
   become: true
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Refresh ansible_pool"
   ansible.builtin.command:
     cmd: virsh -c qemu:///system pool-refresh ansible_pool
   changed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Inject network config via guestfish"
   ansible.builtin.include_tasks: guestfish.yml
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Undefine any stale nym-client domain"
   community.libvirt.virt:
@@ -50,7 +50,7 @@
     flags:
       - nvram
   failed_when: false
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "(libvirt) Define nym-client domain via kvm_provision"
   ansible.builtin.include_role:
@@ -64,7 +64,7 @@
     base_image_url: ""
     base_image_name: "kicksecure-nym-client-base.qcow2"
     vm_disk_size: "100G"
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 # ────────────────────────── proxmox path ──────────────────────────
 
@@ -95,4 +95,4 @@
         vm_disk: "ceph-vms"
       vmid_pool_start: 200
       images: "{{ nym_network.proxmox.images }}"
-  when: nym_network.provision_backend == "proxmox"
+  when: nym_network_provision_backend == "proxmox"

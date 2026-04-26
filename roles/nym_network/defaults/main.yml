@@ -2,9 +2,12 @@
 # nym_network role defaults — overridden by prod-values via config_loader
 # NOTE: prod-values nym_network: block replaces this dict wholesale — keep all keys.
 
-nym_network:
-  provision_backend: libvirt    # "libvirt" | "proxmox"
+# Backend selector lives OUTSIDE the nym_network: dict because callers (e.g.
+# the proxmox playbook) need to override only this without replacing the
+# full mapping. "libvirt" | "proxmox".
+nym_network_provision_backend: libvirt
 
+nym_network:
   libvirt_network_name: nym-network
   network_bridge: virbr-nym
   internal_cidr: 10.55.0.0/24

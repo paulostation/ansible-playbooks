@@ -1,6 +1,6 @@
 ---
 # nym_network dispatcher — orchestrates network + gateway + client provisioning.
-# Backend selected by nym_network.provision_backend ("libvirt" | "proxmox").
+# Backend selected by nym_network_provision_backend ("libvirt" | "proxmox").
 
 - name: "Ensure libguestfs-tools installed (libvirt path only — needed for Kicksecure injection)"
   ansible.builtin.apt:
@@ -9,17 +9,17 @@
     update_cache: true
     cache_valid_time: 3600
   become: true
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "Define and start libvirt network"
   ansible.builtin.include_tasks: network.yml
   tags: [network]
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "Ensure Proxmox SDN zone + vnet"
   ansible.builtin.include_tasks: network-proxmox.yml
   tags: [network]
-  when: nym_network.provision_backend == "proxmox"
+  when: nym_network_provision_backend == "proxmox"
 
 - name: "Provision gateway VM"
   ansible.builtin.include_tasks: gateway.yml

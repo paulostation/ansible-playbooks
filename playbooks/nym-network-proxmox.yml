@@ -40,8 +40,6 @@
 
     - role: nym_network
       vars:
-        nym_network:
-          provision_backend: "{{ nym_network_force_backend }}"
-          # Other keys: inherit from config_loader / role defaults.
-          # If config_loader replaces nym_network: wholesale, ensure the
-          # production values include provision_backend: proxmox for this host.
+        # Top-level var (NOT nested under nym_network:) so it can be overridden
+        # without clobbering the role's nym_network: dict.
+        nym_network_provision_backend: "{{ nym_network_force_backend }}"

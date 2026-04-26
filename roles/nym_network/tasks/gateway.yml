@@ -28,7 +28,7 @@
             - {{ nym_network.gateway_internal_ip }}/{{ nym_network.network_prefix_length }}
           dhcp4: false
           dhcp6: false
-  when: nym_network.provision_backend == "proxmox"
+  when: nym_network_provision_backend == "proxmox"
 
 - name: "Provision nym-gateway via kvm_provision (libvirt)"
   ansible.builtin.include_role:
@@ -42,7 +42,7 @@
     base_image_url: "{{ nym_network.gateway.image_url }}"
     base_image_name: "{{ nym_network.gateway.image_name }}"
     vm_cloud_init_user_data: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
-  when: nym_network.provision_backend == "libvirt"
+  when: nym_network_provision_backend == "libvirt"
 
 - name: "Provision nym-gateway via proxmox_provision"
   ansible.builtin.include_role:
@@ -71,4 +71,4 @@
         vm_disk: "ceph-vms"
       vmid_pool_start: 200
       images: "{{ nym_network.proxmox.images }}"
-  when: nym_network.provision_backend == "proxmox"
+  when: nym_network_provision_backend == "proxmox"
