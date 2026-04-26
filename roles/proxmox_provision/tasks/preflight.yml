@@ -51,3 +51,7 @@
   loop:
     - "{{ proxmox_provision.ssh.iso_path }}"
     - "{{ proxmox_provision.ssh.snippets_path }}"
+  # Always actually create the dirs (even during --check) so subsequent
+  # get_url/copy tasks see them. Creating an empty directory is safe to do
+  # in dry-run.
+  check_mode: false
