@@ -24,7 +24,11 @@
   roles:
     - role: config_loader
       vars:
+        # When CONFIG_STORE is set, point config_loader at that local checkout
+        # and skip the git clone. When unset, both repo and path are empty so
+        # the role is a no-op and we fall back to nym_network role defaults.
         config_store_path: "{{ lookup('env', 'CONFIG_STORE') | default('', true) }}"
+        config_store_repo: "{{ '' if (lookup('env', 'CONFIG_STORE') | length == 0) else (lookup('env', 'CONFIG_STORE_REPO') | default('', true)) }}"
         config_environment: production
 
     - role: nym_network
