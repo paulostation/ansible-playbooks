@@ -29,6 +29,7 @@
 
 - name: Config store loading
   when: config_store_path | length > 0
+  tags: always
   block:
 
     # --- Tier 1: Global values (shared with Helm) ---
