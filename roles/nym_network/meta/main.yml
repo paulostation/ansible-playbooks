@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  author: paulao
+  description: Provisions NymVPN gateway + Kicksecure client VMs on a libvirt host
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+dependencies: []

@@ -1,0 +1,56 @@
+---
+# Ensure ONE image (passed as image_entry) is present on the Proxmox host with
+# the expected sha256. No-op if already present and matching.
+#
+# image_entry is a {key, value} pair from dict2items.
+# image_entry.value is one of:
+#   { kind: http,  url, filename, sha256 }
+#   { kind: s3,    bucket, key, aws_profile, presign_expires, filename, sha256 }
+
+- name: "Stat existing image on Proxmox: {{ image_entry.value.filename }}"
+  delegate_to: proxmox_node
+  ansible.builtin.stat:
+    path: "{{ proxmox_provision.ssh.iso_path }}/{{ image_entry.value.filename }}"
+    checksum_algorithm: sha256
+    get_checksum: true
+  register: _img_stat
+
+- name: "Set image-needed fact for {{ image_entry.key }}"
+  ansible.builtin.set_fact:
+    _img_needed: >-
+      {{ not _img_stat.stat.exists or
+         (_img_stat.stat.checksum | default('')) != image_entry.value.sha256 }}
+
+- name: "Presign S3 URL for {{ image_entry.key }} (only if image needed)"
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command:
+    cmd: >-
+      aws s3 presign
+      s3://{{ image_entry.value.bucket }}/{{ image_entry.value.key }}
+      --expires-in {{ image_entry.value.presign_expires | default(3600) }}
+      --profile {{ image_entry.value.aws_profile }}
+  register: _img_presigned
+  changed_when: false
+  no_log: true   # presigned URL contains a signature; keep it out of logs
+  when:
+    - _img_needed | bool
+    - image_entry.value.kind == "s3"
+
+- name: "Resolve effective URL for {{ image_entry.key }}"
+  ansible.builtin.set_fact:
+    _img_effective_url: >-
+      {{ _img_presigned.stdout
+         if (image_entry.value.kind == 's3' and _img_needed | bool)
+         else image_entry.value.url | default('') }}
+  when: _img_needed | bool
+
+- name: "Download {{ image_entry.value.filename }} on Proxmox host"
+  delegate_to: proxmox_node
+  ansible.builtin.get_url:
+    url: "{{ _img_effective_url }}"
+    dest: "{{ proxmox_provision.ssh.iso_path }}/{{ image_entry.value.filename }}"
+    checksum: "sha256:{{ image_entry.value.sha256 }}"
+    mode: "0644"
+    timeout: 1800
+  when: _img_needed | bool

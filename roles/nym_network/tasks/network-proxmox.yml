@@ -1,0 +1,32 @@
+---
+# Ensure Proxmox SDN simple zone + vnet exist for the isolated nym network.
+# Idempotent: each step checks-then-creates. SDN apply is always run because
+# pvesh set /cluster/sdn is a no-op when nothing is pending.
+#
+# Constraints (Proxmox SDN):
+#   - Zone and vnet IDs must be <= 8 chars, alphanumeric only.
+#   - Defaults are nymz / nymiso. Override at nym_network.proxmox.* if needed.
+
+- name: "SDN: ensure simple zone exists ({{ nym_network.proxmox.sdn_zone }})"
+  delegate_to: proxmox_node
+  ansible.builtin.shell:
+    cmd: |
+      pvesh get /cluster/sdn/zones/{{ nym_network.proxmox.sdn_zone }} >/dev/null 2>&1 \
+        || pvesh create /cluster/sdn/zones --type simple --zone {{ nym_network.proxmox.sdn_zone }}
+  register: _sdn_zone
+  changed_when: "'already exists' not in (_sdn_zone.stderr | default(''))"
+
+- name: "SDN: ensure vnet exists ({{ nym_network.proxmox.sdn_vnet }})"
+  delegate_to: proxmox_node
+  ansible.builtin.shell:
+    cmd: |
+      pvesh get /cluster/sdn/vnets/{{ nym_network.proxmox.sdn_vnet }} >/dev/null 2>&1 \
+        || pvesh create /cluster/sdn/vnets --vnet {{ nym_network.proxmox.sdn_vnet }} --zone {{ nym_network.proxmox.sdn_zone }}
+  register: _sdn_vnet
+  changed_when: "'already exists' not in (_sdn_vnet.stderr | default(''))"
+
+- name: "SDN: apply pending changes"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: "pvesh set /cluster/sdn"
+  changed_when: false

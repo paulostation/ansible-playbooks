@@ -1,0 +1,21 @@
+---
+# Provision the NymVPN gateway + Kicksecure client VMs on pc-do-b.
+#
+# Usage:
+#   CONFIG_STORE=../prod-values ansible-playbook -i hosts.yml playbooks/nym-network.yml
+#
+# Destroy:
+#   ansible-playbook -i hosts.yml playbooks/nym-network.yml --tags destroy
+
+- name: Provision nym-network
+  hosts: pc-do-b
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: config_loader
+      vars:
+        config_store_path: "{{ lookup(\"env\", \"CONFIG_STORE\") | default(\"\", true) }}"
+        config_environment: production
+
+    - role: nym_network
