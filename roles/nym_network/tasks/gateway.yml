@@ -10,6 +10,8 @@
     dest: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
     mode: "0644"
   register: _gw_userdata
+  # Render to /tmp even in --check so downstream tasks have the file to copy.
+  check_mode: false
 
 - name: "Render gateway cloud-init network-config (Proxmox path only)"
   delegate_to: localhost
@@ -29,6 +31,7 @@
           dhcp4: false
           dhcp6: false
   when: nym_network_provision_backend == "proxmox"
+  check_mode: false
 
 - name: "Provision nym-gateway via kvm_provision (libvirt)"
   ansible.builtin.include_role:
