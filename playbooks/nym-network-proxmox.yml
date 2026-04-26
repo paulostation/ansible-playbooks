@@ -21,6 +21,13 @@
       ansible.builtin.set_fact:
         nym_network_force_backend: proxmox
 
+    # Load proxmox_provision defaults early so network-proxmox.yml (called by
+    # nym_network role before any include_role of proxmox_provision) can
+    # reference proxmox_provision.ssh.* on its delegate_to.
+    - name: "Pre-load proxmox_provision role defaults"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/proxmox_provision/defaults/main.yml"
+
   roles:
     - role: config_loader
       vars:
