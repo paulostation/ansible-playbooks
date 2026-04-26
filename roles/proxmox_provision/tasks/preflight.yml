@@ -41,3 +41,13 @@
   changed_when: false
   register: _preflight_ssh
   failed_when: _preflight_ssh.rc != 0
+
+- name: "Preflight: ensure ISO and snippets paths exist on Proxmox"
+  delegate_to: "{{ proxmox_provision.ssh.user }}@{{ proxmox_provision.ssh.host }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ proxmox_provision.ssh.iso_path }}"
+    - "{{ proxmox_provision.ssh.snippets_path }}"
