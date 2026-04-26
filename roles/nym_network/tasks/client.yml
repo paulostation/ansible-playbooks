@@ -84,6 +84,7 @@
     vm_cloud_init_user_data: ""    # Kicksecure has networking baked in
     vm_cloud_init_network_data: ""
     base_image_filename: "{{ nym_network.proxmox.images.client.filename }}"
+    base_image_template_vmid: "{{ nym_network.proxmox.images.client.template_vmid | default('') }}"
     proxmox_provision:
       ssh:
         host: "{{ nym_network.proxmox.ssh_host | default('proxmox.ts.paulo.software.vpn') }}"

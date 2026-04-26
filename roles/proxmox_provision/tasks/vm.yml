@@ -1,12 +1,20 @@
 ---
 # Provision one VM identified by {{ vmid }}. Idempotent.
 #
-# Sequence:
-#   1. Check existence (qm status)
-#   2. If absent: qm create + qm importdisk
-#   3. Always: qm set (disk + nics + cicustom)
-#   4. qm resize (failed_when: false — already-at-size returns nonzero)
-#   5. qm start (only if not already running)
+# Two paths, selected by base_image_template_vmid:
+#
+#   A. CLONE FROM TEMPLATE (preferred — fast):
+#      base_image_template_vmid is non-empty → `qm clone` from a pre-baked
+#      template VM. RBD copy-on-write makes this near-instant on Ceph.
+#
+#   B. IMPORT-PER-VM (fallback):
+#      base_image_template_vmid is empty → `qm create` + `qm importdisk`.
+#      Slow on first creation (~5 min for a 6 GB qcow2 over Ceph).
+#
+# After either path, both branches converge on:
+#   - qm set (NICs, optional cicustom)
+#   - qm resize (failed_when: false — already-at-size returns nonzero)
+#   - qm start (only if not already running)
 
 - name: "Check VM existence: {{ vm_name }} (vmid {{ vmid }})"
   delegate_to: proxmox_node
@@ -15,6 +23,37 @@
   register: _qm_status
   changed_when: false
   failed_when: false
+
+# ────────────────────── Path A: clone from template ──────────────────────
+
+- name: "Clone {{ vm_name }} from template vmid {{ base_image_template_vmid | default('') }}"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: >-
+      qm clone {{ base_image_template_vmid }} {{ vmid }}
+      --name {{ vm_name }}
+      --full
+      --storage {{ proxmox_provision.storage.vm_disk }}
+      --format raw
+  when:
+    - _qm_status.rc != 0
+    - base_image_template_vmid | default('') | length > 0
+
+- name: "Apply CPU/memory/agent settings to cloned {{ vm_name }}"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: >-
+      qm set {{ vmid }}
+      --cores {{ vm_vcpus }}
+      --memory {{ vm_ram_mb }}
+      --cpu host
+      --agent enabled=1
+      --tags "nym;{{ vm_role }}"
+  when:
+    - _qm_status.rc != 0
+    - base_image_template_vmid | default('') | length > 0
+
+# ────────────────────── Path B: import per-VM (fallback) ──────────────────────
 
 - name: "Create VM shell: {{ vm_name }}"
   delegate_to: proxmox_node
@@ -31,7 +70,9 @@
       --vga serial0
       --scsihw virtio-scsi-pci
       --tags "nym;{{ vm_role }}"
-  when: _qm_status.rc != 0
+  when:
+    - _qm_status.rc != 0
+    - base_image_template_vmid | default('') | length == 0
 
 - name: "Import boot disk for {{ vm_name }} into {{ proxmox_provision.storage.vm_disk }}"
   delegate_to: proxmox_node
@@ -41,7 +82,11 @@
       {{ proxmox_provision.ssh.iso_path }}/{{ base_image_filename }}
       {{ proxmox_provision.storage.vm_disk }}
       --format raw
-  when: _qm_status.rc != 0
+  when:
+    - _qm_status.rc != 0
+    - base_image_template_vmid | default('') | length == 0
+
+# ────────────────────── Common: attach NICs + cicustom + boot ──────────────────────
 
 - name: "Attach boot disk + NICs (no cicustom): {{ vm_name }}"
   delegate_to: proxmox_node

@@ -1,0 +1,84 @@
+---
+# Bootstrap base templates on a Proxmox host.
+#
+# Builds Proxmox template VMs (vmid 9000+) from configured base images,
+# storing them on the configured Ceph pool. Subsequent VM provisioning
+# clones from these templates instead of re-importing the qcow2 — a 6 GB
+# import that takes ~5 min on Ceph becomes a near-instant RBD clone.
+#
+# Re-run when an image SHA256 changes in prod-values to refresh templates.
+# Idempotent — no-op if all templates already exist with their target vmids.
+
+- name: "Build Proxmox VM templates from base images"
+  hosts: proxmox
+  gather_facts: false
+  strategy: linear
+
+  pre_tasks:
+    - name: "Pre-load proxmox_provision role defaults"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/proxmox_provision/defaults/main.yml"
+      tags: always
+
+    - name: "Register proxmox_node alias for delegated tasks"
+      ansible.builtin.add_host:
+        name: proxmox_node
+        ansible_host: "{{ ansible_host }}"
+        ansible_user: "{{ ansible_user | default('root') }}"
+        ansible_connection: ssh
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+      changed_when: false
+      tags: always
+
+  roles:
+    - role: config_loader
+      vars:
+        config_store_path: "{{ lookup('env', 'CONFIG_STORE') | default('', true) }}"
+        config_store_repo: "{{ '' if (lookup('env', 'CONFIG_STORE') | length == 0) else (lookup('env', 'CONFIG_STORE_REPO') | default('', true)) }}"
+        config_environment: production
+
+  tasks:
+    # Drive the proxmox_provision role's preflight + ensure_image + ensure_template
+    # tasks directly. We do NOT include the role wholesale because vm.yml expects
+    # vm_name/vmid/etc. that aren't relevant for template-only operations.
+    - name: "Run preflight checks"
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/proxmox_provision/tasks/preflight.yml"
+      vars:
+        proxmox_provision: "{{ _proxmox_provision_for_templates }}"
+
+    - name: "Ensure base images on Proxmox host"
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/proxmox_provision/tasks/ensure_image.yml"
+      vars:
+        proxmox_provision: "{{ _proxmox_provision_for_templates }}"
+      loop: "{{ _proxmox_provision_for_templates.images | dict2items }}"
+      loop_control:
+        loop_var: image_entry
+        label: "{{ image_entry.key }}"
+
+    - name: "Ensure base templates on Proxmox (clone source for fast VM provisioning)"
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/proxmox_provision/tasks/ensure_template.yml"
+      vars:
+        proxmox_provision: "{{ _proxmox_provision_for_templates }}"
+      loop: "{{ _proxmox_provision_for_templates.images | dict2items }}"
+      loop_control:
+        loop_var: image_entry
+        label: "{{ image_entry.key }} (vmid {{ image_entry.value.template_vmid | default('-') }})"
+      when: image_entry.value.template_vmid is defined
+
+  vars:
+    # Reuse the same proxmox-side configuration that nym_network passes through —
+    # storage pool names, SSH paths, and the images dict (with template_vmid keys).
+    _proxmox_provision_for_templates:
+      ssh:
+        host: "{{ nym_network.proxmox.ssh_host | default('proxmox.ts.paulo.software.vpn') }}"
+        user: "root"
+        snippets_path: "/var/lib/vz/snippets"
+        iso_path: "/var/lib/vz/template/iso"
+      storage:
+        iso: "local"
+        snippets: "local"
+        vm_disk: "ceph-vms"
+      images: "{{ nym_network.proxmox.images }}"

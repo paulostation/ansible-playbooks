@@ -74,6 +74,7 @@
     vm_cloud_init_user_data: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
     vm_cloud_init_network_data: "/tmp/{{ nym_network.gateway.name }}-network-config.yaml"
     base_image_filename: "{{ nym_network.proxmox.images.gateway.filename }}"
+    base_image_template_vmid: "{{ nym_network.proxmox.images.gateway.template_vmid | default('') }}"
     proxmox_provision:
       ssh:
         host: "{{ nym_network.proxmox.ssh_host | default('proxmox.ts.paulo.software.vpn') }}"

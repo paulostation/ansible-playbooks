@@ -177,7 +177,7 @@ clean:
 # ─── Proxmox host (overridable: PROXMOX_HOST=other.example.com make nym-proxmox) ───
 PROXMOX_HOST ?= proxmox.ts.paulo.software.vpn
 
-.PHONY: nym-proxmox nym-proxmox-check nym-proxmox-destroy _proxmox-preflight
+.PHONY: nym-proxmox nym-proxmox-check nym-proxmox-destroy nym-proxmox-build-templates _proxmox-preflight
 
 _proxmox-preflight:
 	@aws sts get-caller-identity --profile $(AWS_PROFILE) >/dev/null 2>&1 \
@@ -199,3 +199,11 @@ nym-proxmox: _proxmox-preflight
 nym-proxmox-destroy: _proxmox-preflight
 	$(ansible_env) && \
 	ansible-playbook -i $(INVENTORY) --tags destroy playbooks/nym-network-proxmox.yml $(ARGS)
+
+# One-shot bootstrap: download base images and bake them into Proxmox templates
+# (vmid 9000 = jammy, 9001 = kicksecure). Subsequent `make nym-proxmox` clones
+# from these instead of re-importing 6 GB qcow2 each time.
+# Re-run when image SHA256 changes in prod-values to refresh templates.
+nym-proxmox-build-templates: _proxmox-preflight
+	$(ansible_env) && \
+	ansible-playbook -i $(INVENTORY) playbooks/proxmox-build-templates.yml $(ARGS)
