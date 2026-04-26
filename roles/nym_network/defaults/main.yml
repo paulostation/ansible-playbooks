@@ -67,7 +67,7 @@ nym_network:
         aws_profile: personal-admin-management
         presign_expires: 3600
         filename: "kicksecure-nym-client.qcow2"
-        sha256: "REPLACE_ON_FIRST_DEPLOY"
+        sha256: "f207267672ea5bed5bc9f8cf6dfee77f33935c58c325617876cbd5b235d42775"
 
 # Set true to destroy+redefine the libvirt network (DANGEROUS: kills running VMs on that bridge)
 nym_network_force_recreate_network: false
