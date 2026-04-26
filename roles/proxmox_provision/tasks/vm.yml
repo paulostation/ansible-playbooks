@@ -37,7 +37,7 @@
       --format raw
   when:
     - _qm_status.rc != 0
-    - base_image_template_vmid | default('') | length > 0
+    - (base_image_template_vmid | default('') | string) | length > 0
 
 - name: "Apply CPU/memory/agent settings to cloned {{ vm_name }}"
   delegate_to: proxmox_node
@@ -51,7 +51,7 @@
       --tags "nym;{{ vm_role }}"
   when:
     - _qm_status.rc != 0
-    - base_image_template_vmid | default('') | length > 0
+    - (base_image_template_vmid | default('') | string) | length > 0
 
 # ────────────────────── Path B: import per-VM (fallback) ──────────────────────
 
@@ -72,7 +72,7 @@
       --tags "nym;{{ vm_role }}"
   when:
     - _qm_status.rc != 0
-    - base_image_template_vmid | default('') | length == 0
+    - (base_image_template_vmid | default('') | string) | length == 0
 
 - name: "Import boot disk for {{ vm_name }} into {{ proxmox_provision.storage.vm_disk }}"
   delegate_to: proxmox_node
@@ -84,7 +84,7 @@
       --format raw
   when:
     - _qm_status.rc != 0
-    - base_image_template_vmid | default('') | length == 0
+    - (base_image_template_vmid | default('') | string) | length == 0
 
 # ────────────────────── Common: attach NICs + cicustom + boot ──────────────────────
 
