@@ -1,5 +1,10 @@
 #jinja2: lstrip_blocks: True, trim_blocks: True
 #cloud-config
+{# Resolve NymVPN secrets — prefer top-level keys (set by config_loader Tier 5
+   from production/<host>/ansible.sops.yaml), fall back to legacy nested
+   nym_network.* for libvirt-path callers that already nest them. #}
+{%- set _nym_vpn_mode = nym_vpn_mode | default(nym_network.nym_vpn_mode | default('anonymous')) -%}
+{%- set _nym_vpn_mnemonic = nym_vpn_mnemonic | default(nym_network.nym_vpn_mnemonic | default('')) -%}
 # Gateway VM Cloud-Init Configuration
 # Runs NymVPN daemon and routes client traffic through mixnet
 
@@ -187,12 +192,12 @@ write_files:
       server=127.0.0.53
       cache-size=1000
 
-{% if nym_network.nym_vpn_mnemonic | default('') != '' %}
+{% if _nym_vpn_mnemonic | default('') != '' %}
   # NymVPN account mnemonic (shredded after setup)
   - path: /opt/nym-mnemonic.txt
     permissions: '0600'
     owner: root:root
-    content: {{ nym_network.nym_vpn_mnemonic }}
+    content: {{ _nym_vpn_mnemonic }}
 {% endif %}
 
   # NymVPN account setup script (used when mnemonic is provided)
@@ -213,7 +218,7 @@ write_files:
       echo "Setting NymVPN account..."
       nym-vpnc account set "$MNEMONIC"
 
-      echo "Connecting NymVPN (mode: {{ nym_network.nym_vpn_mode }})..."
+      echo "Connecting NymVPN (mode: {{ _nym_vpn_mode }})..."
       nym-vpnc connect
 
       echo "Waiting for tunnel interface (up to 60s)..."
@@ -241,7 +246,7 @@ write_files:
     content: |
       #!/bin/bash
       echo "=== NymVPN Gateway Status ==="
-      echo "Configured mode: {{ nym_network.nym_vpn_mode }}"
+      echo "Configured mode: {{ _nym_vpn_mode }}"
       echo ""
 
       echo "1. nym-vpnd service:"
@@ -307,7 +312,7 @@ runcmd:
   # Install NymVPN
   - /opt/install-nymvpn.sh
 
-{% if nym_network.nym_vpn_mnemonic | default('') != '' %}
+{% if _nym_vpn_mnemonic | default('') != '' %}
   # Auto-setup NymVPN account
   - systemctl start nym-vpnd.service
   - sleep 5
