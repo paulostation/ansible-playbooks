@@ -232,8 +232,14 @@ write_files:
       bind-dynamic
       listen-address={{ nym_network.gateway_internal_ip }}
       no-dhcp-interface=enp1s0
-      # Forward DNS to nym-vpnd's resolver (loopback)
-      server=127.0.0.53
+      # Forward DNS to nym-vpnd's local resolver. nym-vpnd binds
+      # 127.71.174.54:53 and routes those queries through the Nym mixnet,
+      # so neither our home ISP nor any external resolver sees the queries.
+      # No-resolv ensures we never accidentally fall back to /etc/resolv.conf
+      # (which would route to systemd-resolved → DoT to Cloudflare/Quad9 →
+      # leaking gateway DNS over the home WAN).
+      server=127.71.174.54
+      no-resolv
       cache-size=1000
 
   # Track 2.2 — narrow NOPASSWD allowlist. Anything outside this list
