@@ -29,12 +29,14 @@
 - name: "Clone {{ vm_name }} from template vmid {{ base_image_template_vmid | default('') }}"
   delegate_to: proxmox_node
   ansible.builtin.command:
+    # NOTE: Linked clone (no --full) — RBD COW snapshot from the template's
+    # __base__ snap. Near-instant; thin layer grows only with diverging writes.
+    # Tradeoff: cannot delete the template while clones exist (a feature here —
+    # protects the source). Use --full + --storage if you need an
+    # independent disk (e.g., to delete the template).
     cmd: >-
       qm clone {{ base_image_template_vmid }} {{ vmid }}
       --name {{ vm_name }}
-      --full
-      --storage {{ proxmox_provision.storage.vm_disk }}
-      --format raw
   when:
     - _qm_status.rc != 0
     - (base_image_template_vmid | default('') | string) | length > 0

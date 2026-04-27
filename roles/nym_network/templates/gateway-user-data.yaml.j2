@@ -14,7 +14,11 @@ users:
   - name: ubuntu
     groups: sudo
     shell: /bin/bash
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    # Track 2.2 — no blanket NOPASSWD. Narrow allowlist lives in
+    # /etc/sudoers.d/ubuntu-nym (see write_files below). Anything outside
+    # the allowlist requires interactive password — which fails because
+    # lock_passwd is true. Recovery: serial console as root.
+    sudo: false
     lock_passwd: true
     ssh_authorized_keys:
 {% for key in nym_network.ssh_public_keys %}
@@ -34,6 +38,7 @@ packages:
   - nftables
   - dnsmasq
   - qemu-guest-agent
+  - unattended-upgrades
 
 write_files:
   # NymVPN install script
@@ -80,9 +85,17 @@ write_files:
       echo "NymVPN installed. Run 'nym-vpnc store-account' to configure, then 'nym-vpnc connect' to start."
 
   # IP forwarding (IPv6 must stay enabled — NymVPN requires it)
+  # Track 2.3 — anti-spoofing + redirect/source-route hardening.
   - path: /etc/sysctl.d/99-gateway.conf
     content: |
       net.ipv4.ip_forward = 1
+      net.ipv4.conf.all.rp_filter = 1
+      net.ipv4.conf.all.accept_source_route = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.all.log_martians = 1
+      net.ipv6.conf.all.accept_source_route = 0
+      net.ipv6.conf.all.accept_redirects = 0
 
   # SSH protection + client forwarding nftables rules
   # NymVPN creates a "nym" table with kill switch (policy drop on input/output/forward).
@@ -156,8 +169,8 @@ write_files:
           # Allow loopback
           iif lo accept
 
-          # Allow SSH from anywhere
-          tcp dport 22 accept
+          # Track 2.1 — Restrict SSH to LAN + Tailscale CGNAT only.
+          ip saddr { 192.168.15.0/24, 100.64.0.0/10 } tcp dport 22 accept
 
           # Allow DNS from internal network
           iifname "enp1s0" udp dport 53 accept
@@ -206,6 +219,54 @@ write_files:
       server=127.0.0.53
       cache-size=1000
 
+  # Track 2.2 — narrow NOPASSWD allowlist. Anything outside this list
+  # requires interactive password (which fails because lock_passwd: true).
+  # Recovery for arbitrary admin tasks: serial console as root.
+  - path: /etc/sudoers.d/ubuntu-nym
+    permissions: '0440'
+    owner: root:root
+    content: |
+      # Operations we genuinely automate or run frequently.
+      ubuntu ALL=(root) NOPASSWD: /bin/systemctl restart nym-vpnd
+      ubuntu ALL=(root) NOPASSWD: /bin/systemctl status nym-vpnd
+      ubuntu ALL=(root) NOPASSWD: /bin/systemctl is-active nym-vpnd
+      ubuntu ALL=(root) NOPASSWD: /bin/journalctl -u nym-vpnd *
+      ubuntu ALL=(root) NOPASSWD: /usr/sbin/nft list ruleset
+      ubuntu ALL=(root) NOPASSWD: /usr/bin/nym-vpnc status
+      ubuntu ALL=(root) NOPASSWD: /opt/check-ready.sh
+
+  # Track 2.1 — restrict SSH to LAN + Tailnet at the sshd config level
+  # (nftables is also restricted; defense-in-depth).
+  - path: /etc/ssh/sshd_config.d/10-source-restrict.conf
+    permissions: '0644'
+    content: |
+      # Reject anything outside LAN (192.168.15.0/24) and Tailscale CGNAT
+      # (100.64.0.0/10). The matching `Match` block applies before the
+      # default permit-all behavior.
+      Match Address !192.168.15.0/24,!100.64.0.0/10
+        DenyUsers *
+
+  # Track 2.4 — cap journald to 500M so logs can't fill the 20G boot disk.
+  - path: /etc/systemd/journald.conf.d/limits.conf
+    permissions: '0644'
+    content: |
+      [Journal]
+      SystemMaxUse=500M
+      SystemKeepFree=200M
+      MaxFileSec=1week
+
+  # Track 2.5 — security-only auto-updates, NO auto-reboot. The user reboots
+  # manually when convenient; kernel patches sit pending until then.
+  - path: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    permissions: '0644'
+    content: |
+      Unattended-Upgrade::Origins-Pattern {
+          "origin=Ubuntu,archive=jammy-security";
+          "origin=Ubuntu,archive=jammy-updates";
+      };
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
 {% if _nym_vpn_mnemonic | default('') != '' %}
   # NymVPN account mnemonic (shredded after setup)
   - path: /opt/nym-mnemonic.txt
@@ -252,6 +313,14 @@ write_files:
       # Shred mnemonic file
       echo "Shredding mnemonic file..."
       shred -u "$MNEMONIC_FILE"
+
+      # Track 2.6 — also wipe cloud-init's cached user-data (which still
+      # holds the mnemonic plaintext on disk under /var/lib/cloud/...)
+      echo "Wiping cached cloud-init user-data..."
+      find /var/lib/cloud/instances -name user-data -exec shred -u {} + 2>/dev/null || true
+      find /var/lib/cloud/instance -name user-data -exec shred -u {} + 2>/dev/null || true
+      find /var/lib/cloud/seed -name user-data -exec shred -u {} + 2>/dev/null || true
+
       echo "NymVPN account setup complete."
 
   # Gateway readiness check script
@@ -304,19 +373,26 @@ runcmd:
   # Create nftables.d directory and load SSH protection
   - mkdir -p /etc/nftables.d
   - systemctl daemon-reload
-  - systemctl enable ssh-protect-nft.service
+  # Track 2 fixup — `enable --now` so the service is also "active" after first boot
+  # (not just enabled-pending-reboot). Rules also pre-loaded directly below.
+  - systemctl enable --now ssh-protect-nft.service
   - nft -f /etc/nftables.d/ssh-protect.conf
 
   # Enable and start nftables (nym_gateway table)
-  - systemctl enable nftables
-  - systemctl start nftables
+  - systemctl enable --now nftables
 
   # Enable and start dnsmasq
-  - systemctl enable dnsmasq
-  - systemctl start dnsmasq
+  - systemctl enable --now dnsmasq
 
   # Enable SSH daemon (socket activation fails under nym kill-switch)
   - systemctl enable --now ssh
+
+  # Track 2.4 — apply journald limits immediately (config dropped via write_files)
+  - systemctl restart systemd-journald
+
+  # Track 2.5 — kick unattended-upgrades once at first boot so security
+  # patches start landing without waiting for the nightly timer.
+  - systemctl enable --now unattended-upgrades
 
   # Enable QEMU guest agent so the Proxmox host can introspect the VM.
   # Survives the nym-vpn kill switch because ssh-protect's ct mark covers

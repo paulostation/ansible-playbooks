@@ -88,3 +88,43 @@
       vmid_pool_start: 200
       images: "{{ nym_network.proxmox.images }}"
   when: nym_network_provision_backend == "proxmox"
+
+# Track 2.6 — Wait for cloud-init + Nym connection, then wipe the rendered
+# user-data snippet from the Proxmox host. The mnemonic was in plaintext in
+# the snippet, and the in-VM copy was already shredded by setup-nymvpn-account.sh.
+# Removing the snippet eliminates the last on-disk plaintext copy.
+- name: "(proxmox) Resolve nym_vpn_mnemonic for snippet-wipe gating"
+  ansible.builtin.set_fact:
+    _nym_vpn_mnemonic_present: >-
+      {{ (nym_vpn_mnemonic | default(nym_network.nym_vpn_mnemonic | default(''))) | length > 0 }}
+  no_log: true
+  when: nym_network_provision_backend == "proxmox"
+
+- name: "(proxmox) Wait for gateway cloud-init to complete"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: >-
+      qm guest exec {{ nym_network.gateway.vmid }} --
+      /bin/bash -c "cloud-init status --wait 2>&1 | tail -1"
+  register: _gw_cloud_init
+  retries: 30
+  delay: 20
+  until:
+    - _gw_cloud_init.rc == 0
+    - "'\"exited\" : 1' in (_gw_cloud_init.stdout | default(''))"
+  changed_when: false
+  failed_when: false
+  when:
+    - nym_network_provision_backend == "proxmox"
+    - nym_network_wipe_snippet_after_boot | default(true)
+    - _nym_vpn_mnemonic_present | default(false) | bool
+
+- name: "(proxmox) Remove rendered cicustom snippet from Proxmox after boot"
+  delegate_to: proxmox_node
+  ansible.builtin.file:
+    path: "/var/lib/vz/snippets/{{ nym_network.gateway.name }}-user-data.yaml"
+    state: absent
+  when:
+    - nym_network_provision_backend == "proxmox"
+    - nym_network_wipe_snippet_after_boot | default(true)
+    - _nym_vpn_mnemonic_present | default(false) | bool
