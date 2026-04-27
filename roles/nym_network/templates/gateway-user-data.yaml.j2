@@ -12,12 +12,13 @@ hostname: {{ nym_network.gateway.name }}
 
 users:
   - name: ubuntu
-    groups: sudo
+    # Track 2.2 — DO NOT add to `sudo` group. The narrow NOPASSWD allowlist
+    # in /etc/sudoers.d/ubuntu-nym (see write_files below) is the only
+    # privilege path. Anything outside the allowlist would need an
+    # interactive password — which fails because lock_passwd is true.
+    # Recovery: serial console as root via Proxmox.
+    groups: []
     shell: /bin/bash
-    # Track 2.2 — no blanket NOPASSWD. Narrow allowlist lives in
-    # /etc/sudoers.d/ubuntu-nym (see write_files below). Anything outside
-    # the allowlist requires interactive password — which fails because
-    # lock_passwd is true. Recovery: serial console as root.
     sudo: false
     lock_passwd: true
     ssh_authorized_keys:
