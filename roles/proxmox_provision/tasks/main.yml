@@ -16,6 +16,17 @@
   tags: [proxmox_provision, image]
   when: proxmox_provision.images | length > 0
 
+- name: Ensure base templates on Proxmox (clone source for fast VM provisioning)
+  ansible.builtin.include_tasks: ensure_template.yml
+  loop: "{{ proxmox_provision.images | dict2items }}"
+  loop_control:
+    loop_var: image_entry
+    label: "{{ image_entry.key }} (vmid {{ image_entry.value.template_vmid | default('-') }})"
+  tags: [proxmox_provision, template]
+  when:
+    - proxmox_provision.images | length > 0
+    - image_entry.value.template_vmid is defined
+
 - name: Upload cloud-init snippets (if any)
   ansible.builtin.include_tasks: snippets.yml
   tags: [proxmox_provision, snippets]

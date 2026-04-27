@@ -1,5 +1,10 @@
 #jinja2: lstrip_blocks: True, trim_blocks: True
 #cloud-config
+{# Resolve NymVPN secrets — prefer top-level keys (set by config_loader Tier 5
+   from production/<host>/ansible.sops.yaml), fall back to legacy nested
+   nym_network.* for libvirt-path callers that already nest them. #}
+{%- set _nym_vpn_mode = nym_vpn_mode | default(nym_network.nym_vpn_mode | default('anonymous')) -%}
+{%- set _nym_vpn_mnemonic = nym_vpn_mnemonic | default(nym_network.nym_vpn_mnemonic | default('')) -%}
 # Gateway VM Cloud-Init Configuration
 # Runs NymVPN daemon and routes client traffic through mixnet
 
@@ -7,9 +12,14 @@ hostname: {{ nym_network.gateway.name }}
 
 users:
   - name: ubuntu
-    groups: sudo
+    # Track 2.2 — DO NOT add to `sudo` group. The narrow NOPASSWD allowlist
+    # in /etc/sudoers.d/ubuntu-nym (see write_files below) is the only
+    # privilege path. Anything outside the allowlist would need an
+    # interactive password — which fails because lock_passwd is true.
+    # Recovery: serial console as root via Proxmox.
+    groups: []
     shell: /bin/bash
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: false
     lock_passwd: true
     ssh_authorized_keys:
 {% for key in nym_network.ssh_public_keys %}
@@ -28,6 +38,8 @@ packages:
   - dnsutils
   - nftables
   - dnsmasq
+  - qemu-guest-agent
+  - unattended-upgrades
 
 write_files:
   # NymVPN install script
@@ -36,16 +48,29 @@ write_files:
     content: |
       #!/bin/bash
       set -e
+      exec > >(tee -a /var/log/install-nymvpn.log) 2>&1
 
       NYM_VERSION="{{ nym_network.nym_vpn_version }}"
       DEB_URL="https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-core-v${NYM_VERSION}"
 
       echo "Installing NymVPN v${NYM_VERSION}..."
 
-      # Download deb packages
+      # Wait for network to actually work (DHCP race with runcmd timing).
+      for i in $(seq 1 30); do
+        if curl -sf -m 5 https://github.com >/dev/null 2>&1; then
+          echo "Network reachable after ${i} attempt(s)."
+          break
+        fi
+        echo "Network not ready (attempt ${i}/30), sleeping 5s..."
+        sleep 5
+      done
+
+      # Download deb packages with retries (verbose for diagnosis if it fails).
       cd /tmp
-      wget -q "${DEB_URL}/nym-vpnd_${NYM_VERSION}_amd64.deb" -O nym-vpnd.deb
-      wget -q "${DEB_URL}/nym-vpnc_${NYM_VERSION}_amd64.deb" -O nym-vpnc.deb
+      wget --tries=5 --waitretry=10 --timeout=30 \
+        "${DEB_URL}/nym-vpnd_${NYM_VERSION}_amd64.deb" -O nym-vpnd.deb
+      wget --tries=5 --waitretry=10 --timeout=30 \
+        "${DEB_URL}/nym-vpnc_${NYM_VERSION}_amd64.deb" -O nym-vpnc.deb
 
       # Install (dpkg may fail on deps, apt fix handles it)
       dpkg -i nym-vpnd.deb nym-vpnc.deb || apt-get install -f -y
@@ -61,9 +86,17 @@ write_files:
       echo "NymVPN installed. Run 'nym-vpnc store-account' to configure, then 'nym-vpnc connect' to start."
 
   # IP forwarding (IPv6 must stay enabled — NymVPN requires it)
+  # Track 2.3 — anti-spoofing + redirect/source-route hardening.
   - path: /etc/sysctl.d/99-gateway.conf
     content: |
       net.ipv4.ip_forward = 1
+      net.ipv4.conf.all.rp_filter = 1
+      net.ipv4.conf.all.accept_source_route = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.all.log_martians = 1
+      net.ipv6.conf.all.accept_source_route = 0
+      net.ipv6.conf.all.accept_redirects = 0
 
   # SSH protection + client forwarding nftables rules
   # NymVPN creates a "nym" table with kill switch (policy drop on input/output/forward).
@@ -115,18 +148,19 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
-  # nftables firewall rules - our "gateway" table
-  # Separate from nym-vpnd's "nym" table
+  # nftables firewall rules - our "nym_gateway" table
+  # Separate from nym-vpnd's "nym" table.
+  # NOTE: "gateway" is a reserved keyword in nft on jammy, so we use nym_gateway.
   - path: /etc/nftables.conf
     content: |
       #!/usr/sbin/nft -f
       # Create tables if they don't exist (first boot), then flush
-      add table inet gateway
+      add table inet nym_gateway
       add table inet nat
-      flush table inet gateway
+      flush table inet nym_gateway
       flush table inet nat
 
-      table inet gateway {
+      table inet nym_gateway {
         chain input {
           type filter hook input priority 0; policy drop;
 
@@ -136,8 +170,8 @@ write_files:
           # Allow loopback
           iif lo accept
 
-          # Allow SSH from anywhere
-          tcp dport 22 accept
+          # Track 2.1 — Restrict SSH to LAN + Tailscale CGNAT only.
+          ip saddr { 192.168.15.0/24, 100.64.0.0/10 } tcp dport 22 accept
 
           # Allow DNS from internal network
           iifname "enp1s0" udp dport 53 accept
@@ -158,6 +192,12 @@ write_files:
 
           # Drop internal -> external (leak prevention)
           iifname "enp1s0" oifname "enp2s0" drop
+
+          # Track 1.4 — block client direct DNS to anywhere except 10.55.0.1.
+          # DNAT rule below will hijack the rest, but this is belt-and-suspenders
+          # for any traffic that somehow misses the prerouting hook.
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} udp dport 53 drop
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} tcp dport 53 drop
         }
 
         chain output {
@@ -166,6 +206,16 @@ write_files:
       }
 
       table inet nat {
+        # Track 1.4 — Whonix-style DNS hijack. Any client DNS query to a
+        # non-gateway resolver gets DNAT'd to 10.55.0.1:53 so dnsmasq
+        # answers it. Apps that hardcode 8.8.8.8 keep working but their
+        # queries can no longer reveal hostnames to that external resolver.
+        chain prerouting {
+          type nat hook prerouting priority dstnat;
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} udp dport 53 dnat to {{ nym_network.gateway_internal_ip }}:53
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} tcp dport 53 dnat to {{ nym_network.gateway_internal_ip }}:53
+        }
+
         chain postrouting {
           type nat hook postrouting priority 100;
 
@@ -186,12 +236,60 @@ write_files:
       server=127.0.0.53
       cache-size=1000
 
-{% if nym_network.nym_vpn_mnemonic | default('') != '' %}
+  # Track 2.2 — narrow NOPASSWD allowlist. Anything outside this list
+  # requires interactive password (which fails because lock_passwd: true).
+  # Recovery for arbitrary admin tasks: serial console as root.
+  - path: /etc/sudoers.d/ubuntu-nym
+    permissions: '0440'
+    owner: root:root
+    content: |
+      # Operations we genuinely automate or run frequently.
+      ubuntu ALL=(root) NOPASSWD: /bin/systemctl restart nym-vpnd
+      ubuntu ALL=(root) NOPASSWD: /bin/systemctl status nym-vpnd
+      ubuntu ALL=(root) NOPASSWD: /bin/systemctl is-active nym-vpnd
+      ubuntu ALL=(root) NOPASSWD: /bin/journalctl -u nym-vpnd *
+      ubuntu ALL=(root) NOPASSWD: /usr/sbin/nft list ruleset
+      ubuntu ALL=(root) NOPASSWD: /usr/bin/nym-vpnc status
+      ubuntu ALL=(root) NOPASSWD: /opt/check-ready.sh
+
+  # Track 2.1 — restrict SSH to LAN + Tailnet at the sshd config level
+  # (nftables is also restricted; defense-in-depth).
+  - path: /etc/ssh/sshd_config.d/10-source-restrict.conf
+    permissions: '0644'
+    content: |
+      # Reject anything outside LAN (192.168.15.0/24) and Tailscale CGNAT
+      # (100.64.0.0/10). The matching `Match` block applies before the
+      # default permit-all behavior.
+      Match Address !192.168.15.0/24,!100.64.0.0/10
+        DenyUsers *
+
+  # Track 2.4 — cap journald to 500M so logs can't fill the 20G boot disk.
+  - path: /etc/systemd/journald.conf.d/limits.conf
+    permissions: '0644'
+    content: |
+      [Journal]
+      SystemMaxUse=500M
+      SystemKeepFree=200M
+      MaxFileSec=1week
+
+  # Track 2.5 — security-only auto-updates, NO auto-reboot. The user reboots
+  # manually when convenient; kernel patches sit pending until then.
+  - path: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    permissions: '0644'
+    content: |
+      Unattended-Upgrade::Origins-Pattern {
+          "origin=Ubuntu,archive=jammy-security";
+          "origin=Ubuntu,archive=jammy-updates";
+      };
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+{% if _nym_vpn_mnemonic | default('') != '' %}
   # NymVPN account mnemonic (shredded after setup)
   - path: /opt/nym-mnemonic.txt
     permissions: '0600'
     owner: root:root
-    content: {{ nym_network.nym_vpn_mnemonic }}
+    content: {{ _nym_vpn_mnemonic }}
 {% endif %}
 
   # NymVPN account setup script (used when mnemonic is provided)
@@ -212,7 +310,7 @@ write_files:
       echo "Setting NymVPN account..."
       nym-vpnc account set "$MNEMONIC"
 
-      echo "Connecting NymVPN (mode: {{ nym_network.nym_vpn_mode }})..."
+      echo "Connecting NymVPN (mode: {{ _nym_vpn_mode }})..."
       nym-vpnc connect
 
       echo "Waiting for tunnel interface (up to 60s)..."
@@ -232,6 +330,14 @@ write_files:
       # Shred mnemonic file
       echo "Shredding mnemonic file..."
       shred -u "$MNEMONIC_FILE"
+
+      # Track 2.6 — also wipe cloud-init's cached user-data (which still
+      # holds the mnemonic plaintext on disk under /var/lib/cloud/...)
+      echo "Wiping cached cloud-init user-data..."
+      find /var/lib/cloud/instances -name user-data -exec shred -u {} + 2>/dev/null || true
+      find /var/lib/cloud/instance -name user-data -exec shred -u {} + 2>/dev/null || true
+      find /var/lib/cloud/seed -name user-data -exec shred -u {} + 2>/dev/null || true
+
       echo "NymVPN account setup complete."
 
   # Gateway readiness check script
@@ -240,7 +346,7 @@ write_files:
     content: |
       #!/bin/bash
       echo "=== NymVPN Gateway Status ==="
-      echo "Configured mode: {{ nym_network.nym_vpn_mode }}"
+      echo "Configured mode: {{ _nym_vpn_mode }}"
       echo ""
 
       echo "1. nym-vpnd service:"
@@ -262,8 +368,8 @@ write_files:
       [ "$val" = "1" ] && echo "   ENABLED" || echo "   DISABLED"
       echo ""
 
-      echo "5. nftables gateway table:"
-      nft list table inet gateway 2>/dev/null | head -5 && echo "   ..." || echo "   NOT LOADED"
+      echo "5. nftables nym_gateway table:"
+      nft list table inet nym_gateway 2>/dev/null | head -5 && echo "   ..." || echo "   NOT LOADED"
       echo ""
 
       echo "6. dnsmasq:"
@@ -284,24 +390,36 @@ runcmd:
   # Create nftables.d directory and load SSH protection
   - mkdir -p /etc/nftables.d
   - systemctl daemon-reload
-  - systemctl enable ssh-protect-nft.service
+  # Track 2 fixup — `enable --now` so the service is also "active" after first boot
+  # (not just enabled-pending-reboot). Rules also pre-loaded directly below.
+  - systemctl enable --now ssh-protect-nft.service
   - nft -f /etc/nftables.d/ssh-protect.conf
 
-  # Enable and start nftables (gateway table)
-  - systemctl enable nftables
-  - systemctl start nftables
+  # Enable and start nftables (nym_gateway table)
+  - systemctl enable --now nftables
 
   # Enable and start dnsmasq
-  - systemctl enable dnsmasq
-  - systemctl start dnsmasq
+  - systemctl enable --now dnsmasq
 
   # Enable SSH daemon (socket activation fails under nym kill-switch)
   - systemctl enable --now ssh
 
+  # Track 2.4 — apply journald limits immediately (config dropped via write_files)
+  - systemctl restart systemd-journald
+
+  # Track 2.5 — kick unattended-upgrades once at first boot so security
+  # patches start landing without waiting for the nightly timer.
+  - systemctl enable --now unattended-upgrades
+
+  # Enable QEMU guest agent so the Proxmox host can introspect the VM.
+  # Survives the nym-vpn kill switch because ssh-protect's ct mark covers
+  # only port 22 + enp1s0 traffic; the agent socket runs locally over virtio-serial.
+  - systemctl enable --now qemu-guest-agent
+
   # Install NymVPN
   - /opt/install-nymvpn.sh
 
-{% if nym_network.nym_vpn_mnemonic | default('') != '' %}
+{% if _nym_vpn_mnemonic | default('') != '' %}
   # Auto-setup NymVPN account
   - systemctl start nym-vpnd.service
   - sleep 5

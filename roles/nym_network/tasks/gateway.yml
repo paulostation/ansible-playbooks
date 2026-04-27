@@ -19,13 +19,23 @@
   ansible.builtin.copy:
     dest: "/tmp/{{ nym_network.gateway.name }}-network-config.yaml"
     mode: "0644"
+    # Match-by-MAC + set-name so the in-VM interface names match the
+    # nftables/dnsmasq references (enp1s0/enp2s0) regardless of Proxmox
+    # machine type (i440fx names them ens3/ens6, q35 names them enp1s0/enp2s0).
+    # Pinned MACs come from prod-values/production/proxmox/values.yaml.
     content: |
       version: 2
       ethernets:
-        ens18:
+        external:
+          match:
+            macaddress: "{{ nym_network.gateway.external_mac | lower }}"
+          set-name: enp2s0
           dhcp4: true
           dhcp6: false
-        ens19:
+        internal:
+          match:
+            macaddress: "{{ nym_network.gateway.internal_mac | lower }}"
+          set-name: enp1s0
           addresses:
             - {{ nym_network.gateway_internal_ip }}/{{ nym_network.network_prefix_length }}
           dhcp4: false
@@ -59,9 +69,12 @@
     vm_disk_size: "{{ nym_network.gateway.disk_size_gb }}G"
     vm_net: "{{ nym_network.proxmox.external_bridge }}"
     vm_internal_net: "{{ nym_network.proxmox.sdn_vnet }}"
+    vm_net0_mac: "{{ nym_network.gateway.external_mac | default('') }}"
+    vm_net1_mac: "{{ nym_network.gateway.internal_mac | default('') }}"
     vm_cloud_init_user_data: "/tmp/{{ nym_network.gateway.name }}-user-data.yaml"
     vm_cloud_init_network_data: "/tmp/{{ nym_network.gateway.name }}-network-config.yaml"
     base_image_filename: "{{ nym_network.proxmox.images.gateway.filename }}"
+    base_image_template_vmid: "{{ nym_network.proxmox.images.gateway.template_vmid | default('') }}"
     proxmox_provision:
       ssh:
         host: "{{ nym_network.proxmox.ssh_host | default('proxmox.ts.paulo.software.vpn') }}"
@@ -75,3 +88,43 @@
       vmid_pool_start: 200
       images: "{{ nym_network.proxmox.images }}"
   when: nym_network_provision_backend == "proxmox"
+
+# Track 2.6 — Wait for cloud-init + Nym connection, then wipe the rendered
+# user-data snippet from the Proxmox host. The mnemonic was in plaintext in
+# the snippet, and the in-VM copy was already shredded by setup-nymvpn-account.sh.
+# Removing the snippet eliminates the last on-disk plaintext copy.
+- name: "(proxmox) Resolve nym_vpn_mnemonic for snippet-wipe gating"
+  ansible.builtin.set_fact:
+    _nym_vpn_mnemonic_present: >-
+      {{ (nym_vpn_mnemonic | default(nym_network.nym_vpn_mnemonic | default(''))) | length > 0 }}
+  no_log: true
+  when: nym_network_provision_backend == "proxmox"
+
+- name: "(proxmox) Wait for gateway cloud-init to complete"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: >-
+      qm guest exec {{ nym_network.gateway.vmid }} --
+      /bin/bash -c "cloud-init status --wait 2>&1 | tail -1"
+  register: _gw_cloud_init
+  retries: 30
+  delay: 20
+  until:
+    - _gw_cloud_init.rc == 0
+    - "'\"exited\" : 1' in (_gw_cloud_init.stdout | default(''))"
+  changed_when: false
+  failed_when: false
+  when:
+    - nym_network_provision_backend == "proxmox"
+    - nym_network_wipe_snippet_after_boot | default(true)
+    - _nym_vpn_mnemonic_present | default(false) | bool
+
+- name: "(proxmox) Remove rendered cicustom snippet from Proxmox after boot"
+  delegate_to: proxmox_node
+  ansible.builtin.file:
+    path: "/var/lib/vz/snippets/{{ nym_network.gateway.name }}-user-data.yaml"
+    state: absent
+  when:
+    - nym_network_provision_backend == "proxmox"
+    - nym_network_wipe_snippet_after_boot | default(true)
+    - _nym_vpn_mnemonic_present | default(false) | bool

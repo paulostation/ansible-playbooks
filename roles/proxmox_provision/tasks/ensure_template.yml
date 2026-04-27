@@ -1,0 +1,66 @@
+---
+# Ensure ONE base template exists on Proxmox in Ceph (or whichever vm_disk
+# storage is configured). Idempotent — no-op if template_vmid already exists.
+#
+# image_entry is a {key, value} pair from dict2items.
+# Requires image_entry.value.template_vmid and .template_name.
+# Skipped silently if those keys are absent (caller falls back to importdisk-per-VM).
+
+- name: "Check template existence: vmid {{ image_entry.value.template_vmid | default('-') }} ({{ image_entry.key }})"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: "qm status {{ image_entry.value.template_vmid }}"
+  register: _tpl_status
+  changed_when: false
+  failed_when: false
+  when: image_entry.value.template_vmid is defined
+
+- name: "Create template VM shell: {{ image_entry.value.template_name }}"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: >-
+      qm create {{ image_entry.value.template_vmid }}
+      --name {{ image_entry.value.template_name }}
+      --memory 512
+      --cores 1
+      --cpu host
+      --ostype l26
+      --agent enabled=1
+      --serial0 socket
+      --vga serial0
+      --scsihw virtio-scsi-pci
+      --tags "template;nym"
+  when:
+    - image_entry.value.template_vmid is defined
+    - _tpl_status.rc != 0
+
+- name: "Import boot disk for {{ image_entry.value.template_name }} into {{ proxmox_provision.storage.vm_disk }}"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: >-
+      qm importdisk {{ image_entry.value.template_vmid }}
+      {{ proxmox_provision.ssh.iso_path }}/{{ image_entry.value.filename }}
+      {{ proxmox_provision.storage.vm_disk }}
+      --format raw
+  when:
+    - image_entry.value.template_vmid is defined
+    - _tpl_status.rc != 0
+
+- name: "Attach boot disk to template: {{ image_entry.value.template_name }}"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: >-
+      qm set {{ image_entry.value.template_vmid }}
+      --virtio0 {{ proxmox_provision.storage.vm_disk }}:vm-{{ image_entry.value.template_vmid }}-disk-0,iothread=1,discard=on
+      --boot order=virtio0
+  when:
+    - image_entry.value.template_vmid is defined
+    - _tpl_status.rc != 0
+
+- name: "Mark VM as template: {{ image_entry.value.template_name }}"
+  delegate_to: proxmox_node
+  ansible.builtin.command:
+    cmd: "qm template {{ image_entry.value.template_vmid }}"
+  when:
+    - image_entry.value.template_vmid is defined
+    - _tpl_status.rc != 0

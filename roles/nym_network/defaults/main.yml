@@ -71,3 +71,10 @@ nym_network:
 
 # Set true to destroy+redefine the libvirt network (DANGEROUS: kills running VMs on that bridge)
 nym_network_force_recreate_network: false
+
+# Track 2.6 — wipe the rendered cloud-init snippet from Proxmox /var/lib/vz/snippets
+# after the gateway VM boots and Nym is connected. The snippet contains the mnemonic
+# in plaintext; removing it eliminates the on-disk-at-Proxmox-host copy.
+# Side effect: VM rebuild from snapshot won't re-run cloud-init since the snippet
+# is gone. To rebuild, re-run the Ansible play.
+nym_network_wipe_snippet_after_boot: true
