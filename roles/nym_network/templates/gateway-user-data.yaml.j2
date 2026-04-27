@@ -192,6 +192,12 @@ write_files:
 
           # Drop internal -> external (leak prevention)
           iifname "enp1s0" oifname "enp2s0" drop
+
+          # Track 1.4 — block client direct DNS to anywhere except 10.55.0.1.
+          # DNAT rule below will hijack the rest, but this is belt-and-suspenders
+          # for any traffic that somehow misses the prerouting hook.
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} udp dport 53 drop
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} tcp dport 53 drop
         }
 
         chain output {
@@ -200,6 +206,16 @@ write_files:
       }
 
       table inet nat {
+        # Track 1.4 — Whonix-style DNS hijack. Any client DNS query to a
+        # non-gateway resolver gets DNAT'd to 10.55.0.1:53 so dnsmasq
+        # answers it. Apps that hardcode 8.8.8.8 keep working but their
+        # queries can no longer reveal hostnames to that external resolver.
+        chain prerouting {
+          type nat hook prerouting priority dstnat;
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} udp dport 53 dnat to {{ nym_network.gateway_internal_ip }}:53
+          iifname "enp1s0" ip daddr != {{ nym_network.gateway_internal_ip }} tcp dport 53 dnat to {{ nym_network.gateway_internal_ip }}:53
+        }
+
         chain postrouting {
           type nat hook postrouting priority 100;
 
