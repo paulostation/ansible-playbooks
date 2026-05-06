@@ -1,0 +1,40 @@
+---
+# roles/watchdog_heartbeat/tasks/main.yml
+
+- name: Render healthcheck script
+  ansible.builtin.template:
+    src: watchdog-healthcheck.sh.j2
+    dest: "{{ watchdog_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: restart watchdog timer
+
+- name: Render systemd service unit
+  ansible.builtin.template:
+    src: watchdog-healthcheck.service.j2
+    dest: "{{ watchdog_service_unit }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart watchdog timer
+
+- name: Render systemd timer unit
+  ansible.builtin.template:
+    src: watchdog-healthcheck.timer.j2
+    dest: "{{ watchdog_timer_unit }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart watchdog timer
+
+- name: Enable and start the timer
+  ansible.builtin.systemd:
+    name: watchdog-healthcheck.timer
+    enabled: true
+    state: started
+    daemon_reload: true

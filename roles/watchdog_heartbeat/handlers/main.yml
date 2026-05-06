@@ -1,0 +1,11 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: reload systemd
+
+- name: Restart watchdog-healthcheck.timer
+  ansible.builtin.systemd:
+    name: watchdog-healthcheck.timer
+    state: restarted
+  listen: restart watchdog timer

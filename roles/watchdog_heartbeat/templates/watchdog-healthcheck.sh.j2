@@ -1,0 +1,26 @@
+#!/bin/bash
+# /usr/local/bin/watchdog-healthcheck.sh — managed by ansible
+#
+# Emits 4 Prometheus metrics every {{ watchdog_interval_seconds }}s and
+# pushes them to each configured vmsingle URL. Each push is wrapped with
+# `|| true` so a single sink failure does not abort the others — true
+# dual-write semantics at the script level.
+
+set -uo pipefail
+
+ping_output=$(ping -c 3 -W 2 "{{ watchdog_ping_target }}" 2>/dev/null || true)
+avg_latency=$(echo "$ping_output" | awk -F/ 'END{print $5+0}')
+jitter=$(echo "$ping_output" | awk -F/ 'END{print $7+0}')
+loss_pct=$(echo "$ping_output" | awk -F'[,%]' '/packet loss/{gsub(/ /,""); print $3+0}')
+loss_ratio=$(awk "BEGIN{print ${loss_pct:-0}/100}")
+ts=$(date +%s)
+host="{{ watchdog_label_host }}"
+
+payload="watchdog_heartbeat{host=\"${host}\"} ${ts}
+watchdog_ping_latency_ms{host=\"${host}\"} ${avg_latency:-0}
+watchdog_ping_jitter_ms{host=\"${host}\"} ${jitter:-0}
+watchdog_ping_loss_ratio{host=\"${host}\"} ${loss_ratio:-0}"
+
+{% for target in watchdog_targets %}
+curl -sk -m 5 -o /dev/null --data-binary "${payload}" "{{ target }}" || true
+{% endfor %}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run watchdog-healthcheck every {{ watchdog_interval_seconds }}s
+
+[Timer]
+OnBootSec={{ watchdog_interval_seconds }}s
+OnUnitActiveSec={{ watchdog_interval_seconds }}s
+AccuracySec={{ watchdog_accuracy_seconds }}s
+Unit=watchdog-healthcheck.service
+
+[Install]
+WantedBy=timers.target

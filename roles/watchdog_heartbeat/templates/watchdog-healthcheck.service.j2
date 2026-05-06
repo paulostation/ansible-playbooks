@@ -1,0 +1,11 @@
+[Unit]
+Description=Watchdog healthcheck (push heartbeat + ping metrics)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ watchdog_script_path }}
+User=root
+NoNewPrivileges=true
+PrivateTmp=true
