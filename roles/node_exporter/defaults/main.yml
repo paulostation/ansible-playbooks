@@ -1,0 +1,41 @@
+---
+# roles/node_exporter/defaults/main.yml
+
+# Pinned upstream version. Bump after testing across the fleet; do not let
+# distro packages drift this around (asus-tuf got 1.10.2 from apt, omarchy
+# got 1.9.1 from AUR — opting in to a fixed binary makes the fleet uniform).
+node_exporter_version: "1.10.2"
+
+# Where the binary lives. /usr/local/bin is the upstream-recommended path
+# when not using a distro package; this avoids collision with apt-installed
+# /usr/bin/prometheus-node-exporter on Ubuntu hosts.
+node_exporter_install_path: "/usr/local/bin/node_exporter"
+
+# Listen address. Default binds all interfaces; per-host overrides should
+# pin to a specific tailnet IP for hosts that face untrusted networks
+# (vpn-hub being the obvious case).
+node_exporter_listen_address: "0.0.0.0:9100"
+
+# Extra command-line flags. Pre-seeded with --no-collector.thermal_zone
+# for aarch64 hosts only (see vars/aarch64.yml). Empty by default for x86_64.
+node_exporter_extra_args: []
+
+# ufw rule scope. Only used when node_exporter_skip_firewall is false.
+# 100.64.7.0/24 is the headscale-managed tailnet CIDR.
+node_exporter_tailnet_cidr: "100.64.7.0/24"
+
+# When true, the role does NOT touch host firewall (ufw or otherwise).
+# Set to true on:
+#   - Arch hosts (no ufw by default; existing posture is "trust LAN")
+#   - vpn-hub (Lightsail's own firewall rules; we don't want a host-level
+#     ufw rule to mask the AWS-side denies)
+node_exporter_skip_firewall: false
+
+# System user for running the binary. Created if absent. Kept off the apt
+# default (`prometheus`) to avoid colliding with apt-installed packages
+# during transition.
+node_exporter_user: "node_exporter"
+node_exporter_group: "node_exporter"
+
+# Temp directory for the downloaded tarball. Cleaned up after install.
+node_exporter_download_dir: "/tmp/node_exporter_install"
