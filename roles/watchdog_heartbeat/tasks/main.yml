@@ -1,6 +1,18 @@
 ---
 # roles/watchdog_heartbeat/tasks/main.yml
 
+# The script pushes to vmsingle ingress hostnames (e.g.
+# vmsingle.stremio-rpi.paulo.software.vpn) which only resolve via
+# Tailscale's MagicDNS. Some Lightsail/server installs default to
+# accept-dns=false; without this the curl fails with HTTP 000 / could
+# not resolve host. Idempotent: tailscale set is a no-op if already
+# enabled.
+- name: Ensure Tailscale accept-dns is enabled (for MagicDNS resolution of vmsingle hosts)
+  ansible.builtin.command: tailscale set --accept-dns=true
+  register: ts_dns
+  changed_when: false  # `tailscale set` exits 0 either way; treat as informational
+  failed_when: ts_dns.rc != 0
+
 - name: Render healthcheck script
   ansible.builtin.template:
     src: watchdog-healthcheck.sh.j2
