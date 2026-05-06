@@ -1,0 +1,18 @@
+---
+# roles/node_exporter/tasks/main.yml
+
+- name: Preflight checks (detect existing install)
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Install node_exporter binary
+  ansible.builtin.import_tasks: install.yml
+  when: node_exporter_install_needed | bool
+
+- name: Configure systemd service
+  ansible.builtin.import_tasks: service.yml
+
+- name: Configure firewall (Debian/Ubuntu only, when not skipped)
+  ansible.builtin.import_tasks: firewall.yml
+  when:
+    - not (node_exporter_skip_firewall | bool)
+    - ansible_facts['os_family'] == "Debian"

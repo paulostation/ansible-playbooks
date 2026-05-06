@@ -1,0 +1,39 @@
+---
+# roles/node_exporter/tasks/service.yml
+
+- name: Render EnvironmentFile for extra args
+  ansible.builtin.template:
+    src: node_exporter.env.j2
+    dest: /etc/default/node_exporter
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart node_exporter
+
+- name: Render systemd unit
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart node_exporter
+
+- name: Ensure node_exporter is enabled and started
+  ansible.builtin.systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for /metrics to respond
+  ansible.builtin.uri:
+    url: "http://{{ node_exporter_listen_address }}/metrics"
+    return_content: false
+  register: ne_metrics_probe
+  retries: 5
+  delay: 3
+  until: ne_metrics_probe.status == 200
+  when: not (node_exporter_skip_metrics_probe | default(false) | bool)
