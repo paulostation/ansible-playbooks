@@ -1,0 +1,29 @@
+---
+# playbooks/node-exporter.yml
+# Deploy or reconcile node_exporter across the fleet defined by the
+# `node_exporter` inventory group.
+#
+# Usage:
+#   ansible-playbook playbooks/node-exporter.yml -l <host>           # single host
+#   ansible-playbook playbooks/node-exporter.yml                     # whole group
+
+- name: Deploy node_exporter
+  hosts: node_exporter
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Show target context
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} ({{ ansible_facts['os_family'] }} /
+          {{ ansible_facts['architecture'] }}, listen={{ node_exporter_listen_address }},
+          skip_firewall={{ node_exporter_skip_firewall }})
+
+    - name: Disable thermal_zone collector on aarch64 (jetson-style hangs)
+      ansible.builtin.set_fact:
+        node_exporter_extra_args: "{{ node_exporter_extra_args + ['--no-collector.thermal_zone'] }}"
+      when: ansible_facts['architecture'] == "aarch64"
+
+  roles:
+    - role: node_exporter

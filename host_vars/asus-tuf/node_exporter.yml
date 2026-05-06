@@ -1,0 +1,10 @@
+---
+# host_vars/asus-tuf/node_exporter.yml
+# This controller machine IS asus-tuf. SSH-to-self would loop, so use
+# the local connection plugin instead.
+ansible_connection: local
+ansible_host: 127.0.0.1
+
+# tier label exposed to vmagent's static-scrape config; flows into vmsingle
+# via the host's scraped time-series.
+node_exporter_tier: laptop

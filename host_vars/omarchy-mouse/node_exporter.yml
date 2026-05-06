@@ -1,0 +1,7 @@
+---
+# host_vars/omarchy-mouse/node_exporter.yml
+
+# No ufw on Arch by default; rely on existing security posture.
+node_exporter_skip_firewall: true
+
+node_exporter_tier: desktop
