@@ -1,0 +1,28 @@
+[Unit]
+Description=Prometheus node_exporter
+Documentation=https://github.com/prometheus/node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ node_exporter_user }}
+Group={{ node_exporter_group }}
+EnvironmentFile=/etc/default/node_exporter
+ExecStart={{ node_exporter_install_path }} \
+  --web.listen-address={{ node_exporter_listen_address }} \
+  $EXTRA_ARGS
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/etc/default/node_exporter
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+
+[Install]
+WantedBy=multi-user.target

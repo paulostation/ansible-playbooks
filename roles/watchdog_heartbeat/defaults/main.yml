@@ -1,0 +1,29 @@
+---
+# roles/watchdog_heartbeat/defaults/main.yml
+
+# Where to push metrics. With Plan B both vmsingles serve the
+# /api/v1/import/prometheus endpoint via their own ingresses.
+# vmsingle.jetson.* is not yet in headscale extra_records (deferred
+# follow-up from Plan B), so the second target uses the existing
+# stremio-rpi ingress hostname which routes to vmsingle-rpi only.
+# When that DNS gap is closed, swap the second URL to
+# https://vmsingle.jetson.paulo.software.vpn/api/v1/import/prometheus.
+watchdog_targets:
+  - "https://vmsingle.stremio-rpi.paulo.software.vpn/api/v1/import/prometheus"
+
+# Ping target for latency / loss measurements.
+watchdog_ping_target: "8.8.8.8"
+
+# Label value attached to all emitted metrics. Defaults to inventory_hostname
+# so each host's heartbeat is identifiable in PromQL.
+watchdog_label_host: "{{ inventory_hostname }}"
+
+# systemd timer interval. Match the 30s baseline established by
+# 2026-01-29-comprehensive-alerting-report.
+watchdog_interval_seconds: 30
+watchdog_accuracy_seconds: 5
+
+# Install paths.
+watchdog_script_path: "/usr/local/bin/watchdog-healthcheck.sh"
+watchdog_service_unit: "/etc/systemd/system/watchdog-healthcheck.service"
+watchdog_timer_unit: "/etc/systemd/system/watchdog-healthcheck.timer"

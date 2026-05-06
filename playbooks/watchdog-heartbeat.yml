@@ -1,0 +1,12 @@
+---
+# playbooks/watchdog-heartbeat.yml
+# Deploy the watchdog heartbeat script + systemd timer. Currently only
+# vpn-hub is in this inventory group (replacing the defunct vpn-gateway).
+
+- name: Deploy watchdog heartbeat
+  hosts: watchdog_heartbeat
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: watchdog_heartbeat

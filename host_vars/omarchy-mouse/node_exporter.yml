@@ -1,0 +1,19 @@
+---
+# host_vars/omarchy-mouse/node_exporter.yml
+#
+# IMPORTANT: the vector_agents group entry (in hosts.yml) redirects
+# omarchy-mouse to ansible_host: 127.0.0.1 / ansible_connection: local
+# because vector is actually run from the controller (asus-tuf) that
+# ships logs ON BEHALF OF omarchy-mouse. For node_exporter we need the
+# OPPOSITE: connect to the real omarchy-mouse desktop machine via
+# tailnet. host_vars takes precedence over group_vars, so these settings
+# override the vector_agents redirect.
+ansible_host: omarchy-mouse.ts.paulo.software.vpn
+ansible_connection: ssh
+ansible_user: paulao
+ansible_python_interpreter: /usr/bin/python3
+
+# No ufw on Arch by default; rely on existing security posture.
+node_exporter_skip_firewall: true
+
+node_exporter_tier: desktop

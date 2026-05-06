@@ -1,0 +1,64 @@
+---
+# roles/node_exporter/tasks/install.yml
+#
+# Download the upstream tarball, extract, place the binary, ensure user/group.
+
+- name: Map host architecture to release tarball arch token
+  ansible.builtin.set_fact:
+    node_exporter_arch: >-
+      {{
+        {'x86_64': 'amd64',
+         'aarch64': 'arm64',
+         'armv7l': 'armv7'}[ansible_facts['architecture']]
+      }}
+
+- name: Ensure node_exporter group exists
+  ansible.builtin.group:
+    name: "{{ node_exporter_group }}"
+    system: true
+    state: present
+
+- name: Ensure node_exporter user exists
+  ansible.builtin.user:
+    name: "{{ node_exporter_user }}"
+    group: "{{ node_exporter_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/node_exporter
+    create_home: false
+    state: present
+
+- name: Create temp download directory
+  ansible.builtin.file:
+    path: "{{ node_exporter_download_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download node_exporter tarball
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz
+    dest: "{{ node_exporter_download_dir }}/node_exporter.tar.gz"
+    mode: "0644"
+
+- name: Extract tarball
+  ansible.builtin.unarchive:
+    src: "{{ node_exporter_download_dir }}/node_exporter.tar.gz"
+    dest: "{{ node_exporter_download_dir }}"
+    remote_src: true
+    creates: "{{ node_exporter_download_dir }}/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}/node_exporter"
+
+- name: Place binary at install path
+  ansible.builtin.copy:
+    src: "{{ node_exporter_download_dir }}/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}/node_exporter"
+    dest: "{{ node_exporter_install_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  notify: restart node_exporter
+
+- name: Clean up download directory
+  ansible.builtin.file:
+    path: "{{ node_exporter_download_dir }}"
+    state: absent

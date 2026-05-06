@@ -1,0 +1,12 @@
+---
+# host_vars/vpn-hub/node_exporter.yml
+# (config_loader populates ansible_host/ansible_user from a sops-encrypted
+# secrets.sops.yml in this directory; do NOT override those here.)
+
+# Lightsail t3.nano has its own ingress firewall; we don't want a host-level
+# ufw rule layered on top (it complicates AWS-side audits). Bind the listen
+# address to the tailnet IP so the only path in is via Tailscale anyway.
+node_exporter_skip_firewall: true
+node_exporter_listen_address: "100.64.7.9:9100"
+
+node_exporter_tier: cloud

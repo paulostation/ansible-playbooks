@@ -1,0 +1,34 @@
+---
+# roles/node_exporter/tasks/preflight.yml
+#
+# Decide whether to install/upgrade the binary. Sets node_exporter_install_needed.
+# An "install needed" result triggers download + replace. Otherwise the role is
+# a no-op for the binary (but still reconciles systemd unit + firewall rule).
+
+- name: Check if binary exists at expected path
+  ansible.builtin.stat:
+    path: "{{ node_exporter_install_path }}"
+  register: ne_binary_stat
+
+- name: Check binary version (if it exists)
+  ansible.builtin.command: "{{ node_exporter_install_path }} --version"
+  register: ne_version_check
+  changed_when: false
+  failed_when: false
+  when: ne_binary_stat.stat.exists
+
+- name: Compute install_needed flag
+  ansible.builtin.set_fact:
+    node_exporter_install_needed: >-
+      {{
+        (not ne_binary_stat.stat.exists)
+        or
+        (ne_version_check.stdout is defined and node_exporter_version not in ne_version_check.stdout)
+      }}
+
+- name: Show install decision
+  ansible.builtin.debug:
+    msg: >-
+      node_exporter binary at {{ node_exporter_install_path }}:
+      {% if ne_binary_stat.stat.exists %}exists, version output: {{ ne_version_check.stdout_lines[0] | default('unknown') }}{% else %}does not exist{% endif %}.
+      install_needed={{ node_exporter_install_needed }}

@@ -1,0 +1,23 @@
+---
+# roles/node_exporter/tasks/firewall.yml
+#
+# Allow the tailnet CIDR to reach port 9100. Only invoked from main.yml when:
+#   - ansible_facts['os_family'] == "Debian" (ufw assumed available)
+#   - node_exporter_skip_firewall is false (per-host opt-out)
+#
+# We never close the port from other CIDRs explicitly; default ufw policy
+# governs that. This rule just ensures the ALLOW-from-tailnet entry exists.
+
+- name: Ensure ufw is installed (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: false
+
+- name: Allow tailnet CIDR to node_exporter
+  community.general.ufw:
+    rule: allow
+    src: "{{ node_exporter_tailnet_cidr }}"
+    port: "9100"
+    proto: tcp
+    comment: "node_exporter (managed by ansible)"
