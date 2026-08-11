@@ -10,6 +10,7 @@
       - ffmpegthumbnailer   # Video thumbnail generation
       - imagemagick         # Image manipulation
       - chafa               # Terminal image fallback
+      - unzip                # required by unarchive to extract the .zip release
     state: present
     update_cache: true
     cache_valid_time: 3600
@@ -27,6 +28,7 @@
       - chafa               # Terminal image fallback
       - kitty               # Terminal with Kitty graphics protocol
       - ttf-hack-nerd       # Nerd font for icons
+      - unzip                # required by unarchive to extract the .zip release
     state: present
     update_cache: true
 

@@ -1,24 +1,39 @@
-# SOPS configuration file
-# Uses both age keys and AWS KMS encryption for redundancy
+# SOPS configuration for ansible-playbooks repo.
+# Three official decryption sources + AWS KMS recovery.
+
+keys:
+  - &asus_tuf_tpm     age1xl5uvmgwpkzjtnumq7jut5znrufnzc25avtdt4x9zgcln3qwta6s0uh9kx
+  - &omarchy_tpm      age1sfnd93fu857mdcjtswtjrsj8r37whrfz6vjdcpdk4em77m8pa59sl8c5fm
+  - &stremio_argocd   age1w4r8nzse4rz7pfazuelwdnm2x3p5z0456utglax9fve8zt467efs5f3s7e
+  - &aws_kms_personal arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
 
 creation_rules:
   # Match any .sops.yml file in host_vars or group_vars
   - path_regex: .*(host_vars|group_vars)/.*\.sops\.(yml|yaml)$
-    age: >-
-      age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk,
-      age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
-    kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
+    key_groups:
+      - age:
+          - *asus_tuf_tpm
+          - *omarchy_tpm
+          - *stremio_argocd
+        kms:
+          - arn: *aws_kms_personal
 
   # Match group_vars/all for kopia secrets
   - path_regex: group_vars/all/.*\.sops\.(yml|yaml)$
-    age: >-
-      age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk,
-      age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
-    kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
+    key_groups:
+      - age:
+          - *asus_tuf_tpm
+          - *omarchy_tpm
+          - *stremio_argocd
+        kms:
+          - arn: *aws_kms_personal
 
   # Fallback for any .sops.yml file
   - path_regex: .*\.sops\.(yml|yaml)$
-    age: >-
-      age1qr8admz3tpydxtwuefwdggm2vks36e2x5966zj8m84j2elyurdfsdg5jfk,
-      age18y8alr4hmg0cupmqwlzjgrmwn495q74275jfk4j4hyvlgv80n3vsc8th8g
-    kms: arn:aws:kms:us-east-1:256935246980:key/e066688f-aa55-470e-9a33-84393e9c4310
+    key_groups:
+      - age:
+          - *asus_tuf_tpm
+          - *omarchy_tpm
+          - *stremio_argocd
+        kms:
+          - arn: *aws_kms_personal

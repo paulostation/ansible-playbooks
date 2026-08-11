@@ -11,6 +11,8 @@
 
 - name: Clone or update skills repository
   become: false
+  environment:
+    SSH_AUTH_SOCK: "{{ claude_code_ssh_auth_sock }}"
   git:
     repo: "{{ claude_code_skills_repo }}"
     dest: "{{ claude_code_skills_repo_dir }}"

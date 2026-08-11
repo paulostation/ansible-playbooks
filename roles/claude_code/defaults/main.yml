@@ -23,3 +23,9 @@ claude_code_skills_repo_dir: "~{{ claude_code_user }}/.local/share/claude-skills
 claude_code_skills_all: true
 claude_code_skills_list:
   - documenting
+
+# Optional SSH_AUTH_SOCK for the skills repo git clone (SSH URL). The
+# connecting user's agent socket isn't forwarded automatically — set this
+# when cloning over SSH requires an agent (see roles/chezmoi for the same
+# pattern and why it's needed).
+claude_code_ssh_auth_sock: ""

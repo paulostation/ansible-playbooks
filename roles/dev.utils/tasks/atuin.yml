@@ -6,10 +6,43 @@
 
 - name: Download and install Atuin
   become: false
-  shell: curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+  # Must run under bash, not the default /bin/sh (dash on Debian/Ubuntu).
+  # The installer's `exec 3</dev/tty` TTY-detection, under `set -eu` with no
+  # controlling tty (as under Ansible), is fatal in dash but not bash — it
+  # kills the script before any output, surfacing as a bare rc=2.
+  # --non-interactive also skips the import/register/sync prompts, which
+  # have no tty to read from here anyway.
+  shell: curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | bash -s -- --non-interactive
   args:
+    executable: /bin/bash
     creates: "/home/{{ ansible_user }}/.atuin/bin/atuin"
   when: not atuin_binary.stat.exists
+
+- name: Remove installer's own .zshrc append (chezmoi owns atuin init; see above)
+  lineinfile:
+    path: "/home/{{ ansible_user }}/.zshrc"
+    regexp: '^eval "\$\(atuin init zsh\)"$'
+    state: absent
+  when: not atuin_binary.stat.exists
+
+- name: Check for a chezmoi-managed dotfiles source
+  stat:
+    path: "/home/{{ ansible_user }}/.local/share/chezmoi"
+  register: chezmoi_source_dir
+  when: not atuin_binary.stat.exists
+
+# Backstop for the above: the binary installer invoked by setup.atuin.sh
+# (atuin-installer.sh) also appends its own PATH-setup line to .zshrc, with
+# wording that isn't pinned to a version and could change. Rather than chase
+# every line an upstream installer might write, reconcile .zshrc back to the
+# chezmoi source of truth wholesale.
+- name: Reconcile .zshrc via chezmoi apply (catches any other installer writes)
+  become: false
+  command: chezmoi apply --force
+  when:
+    - not atuin_binary.stat.exists
+    - chezmoi_source_dir.stat.exists | default(false)
+  changed_when: true
 
 - name: Ensure Atuin config directory exists
   file:
@@ -27,18 +60,12 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
-- name: Add Atuin shell integration to .zshrc
-  become: false
-  blockinfile:
-    path: "/home/{{ ansible_user }}/.zshrc"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - Atuin"
-    block: |
-      # Atuin shell history
-      if [[ -f ~/.atuin/bin/env ]]; then
-        source ~/.atuin/bin/env
-        eval "$(atuin init zsh)"
-      fi
-    insertafter: EOF
+# No .zshrc management here: chezmoi (see dev.utils's chezmoi role, run
+# earlier in this playbook) owns .zshrc and sources a per-host
+# .zshrc.local.tmpl that already inits atuin when ~/.atuin/bin/env exists.
+# A blockinfile task here would double-init (on top of what setup.atuin.sh's
+# own installer appends) and get silently reverted by the next `chezmoi
+# apply`, the same drift bug fixed for the asdf role.
 
 - name: Check if Atuin session exists
   stat:

@@ -23,3 +23,9 @@ chezmoi_age_recipient: ""
 # Behavior
 chezmoi_auto_init: true
 chezmoi_auto_apply: true
+
+# Optional SSH_AUTH_SOCK to pass through to the become_user's git operations.
+# become_user spawns a fresh session that doesn't inherit the connecting
+# user's agent socket, so SSH-based repo clones fail silently with
+# "Permission denied (publickey)" unless this is set explicitly.
+chezmoi_ssh_auth_sock: ""
