@@ -109,13 +109,15 @@
   loop: "{{ asdf_plugins }}"
   changed_when: false
 
-- name: Install requested versions
+- name: Install and activate requested versions
   become: true
   become_user: "{{ asdf_user }}"
   ansible.builtin.shell: |
     set -euo pipefail
     . "{{ asdf_dir }}/asdf.sh"
     asdf install "{{ item.name }}" "{{ item.version }}"
+    asdf global "{{ item.name }}" "{{ item.version }}"
+    asdf reshim "{{ item.name }}"
   args:
     executable: /bin/bash
   environment:
@@ -125,21 +127,6 @@
   register: install_results
   # Mark changed only if the install path is created during this run
   changed_when: false
-
-- name: Set global versions
-  become: true
-  become_user: "{{ asdf_user }}"
-  ansible.builtin.shell: |
-    set -euo pipefail
-    . "{{ asdf_dir }}/asdf.sh"
-    asdf global "{{ item.name }}" "{{ item.version }}"
-    asdf reshim "{{ item.name }}"
-  args:
-    executable: /bin/bash
-  environment:
-    ASDF_DIR: "{{ asdf_dir }}"
-    PATH: "{{ asdf_dir }}/bin:{{ asdf_dir }}/shims:{{ ansible_facts['env']['PATH'] }}"
-  loop: "{{ asdf_plugins }}"
 
 - name: Show final asdf tool versions (debug)
   become: true

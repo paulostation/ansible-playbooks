@@ -75,6 +75,8 @@
 - name: Initialize chezmoi with dotfiles repo
   become: true
   become_user: "{{ chezmoi_user }}"
+  environment:
+    SSH_AUTH_SOCK: "{{ chezmoi_ssh_auth_sock }}"
   command: "chezmoi init {{ chezmoi_source }}"
   when: not chezmoi_initialized.stat.exists
   register: chezmoi_init_result
@@ -83,6 +85,8 @@
 - name: Apply chezmoi dotfiles
   become: true
   become_user: "{{ chezmoi_user }}"
+  environment:
+    SSH_AUTH_SOCK: "{{ chezmoi_ssh_auth_sock }}"
   command: "chezmoi apply --force"
   when: chezmoi_auto_apply | bool
   register: chezmoi_apply_result
@@ -92,6 +96,8 @@
 - name: Update chezmoi dotfiles (if already initialized)
   become: true
   become_user: "{{ chezmoi_user }}"
+  environment:
+    SSH_AUTH_SOCK: "{{ chezmoi_ssh_auth_sock }}"
   command: "chezmoi update --force"
   when:
     - chezmoi_initialized.stat.exists
